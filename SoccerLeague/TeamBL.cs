@@ -1,13 +1,17 @@
 ﻿using System.Collections.Generic;
+using SoccerLeague.Interface;
 
 namespace SoccerLeague
 {
     class TeamBL
     {
-        public TeamDAL teamDAL;
+        public ITeamDAL teamDAL;
+        public TeamBL(ITeamDAL teamDAL)
+        {
+            this.teamDAL = teamDAL;
+        }
         public List<Team> GetAllTeams()
         {
-            teamDAL = new TeamDAL();
             return teamDAL.SelectAllTeams();
         }
     }

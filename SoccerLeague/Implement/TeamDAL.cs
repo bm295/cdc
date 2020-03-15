@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
+using SoccerLeague.Interface;
 
-namespace SoccerLeague
+namespace SoccerLeague.Implement
 {
-    public class TeamDAL
+    public class TeamDAL : ITeamDAL
     {
         public List<Team> SelectAllTeams()
         {
