@@ -2,7 +2,7 @@
 
 namespace SoccerLeague.Interface
 {
-    interface ITeamDAL
+    public interface ITeamDAL
     {
         List<Team> SelectAllTeams();
     }

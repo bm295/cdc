@@ -14,5 +14,15 @@ namespace UnitTest
             Assert.IsType<int>(teamGoal);
             Assert.InRange(teamGoal, minGoal, maxGoal);
         }
+
+        [Fact]
+        public void TeamInitialized()
+        {
+            var teams = new TeamBL().GetAllTeams();
+            var candidate = new Team() { Id = 1, Name = "Pranaya", Group = "IT" };
+            Assert.Contains(candidate, teams);
+            Assert.True(candidate.Equals(teams[0]));
+            Assert.True(Equals(candidate, teams[0]));
+        }
     }
 }
