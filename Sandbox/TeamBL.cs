@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
-using SoccerLeague.Implement;
-using SoccerLeague.Interface;
+using Sandbox.Implement;
+using Sandbox.Interface;
 
-namespace SoccerLeague
+namespace Sandbox
 {
     public class TeamBL
     {

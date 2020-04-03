@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace SoccerLeague
+namespace Sandbox
 {
     public class Team : IEquatable<Team>
     {

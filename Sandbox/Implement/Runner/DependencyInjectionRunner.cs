@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using SoccerLeague.Interface;
+using Sandbox.Interface;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SoccerLeague.Implement.Runner
+namespace Sandbox.Implement.Runner
 {
     public class DependencyInjectionRunner : IRunner
     {

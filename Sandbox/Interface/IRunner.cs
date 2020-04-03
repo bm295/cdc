@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace SoccerLeague.Interface
+namespace Sandbox.Interface
 {
     public interface IRunner
     {

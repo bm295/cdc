@@ -1,4 +1,4 @@
-using SoccerLeague;
+using Sandbox;
 using Xunit;
 
 namespace UnitTest

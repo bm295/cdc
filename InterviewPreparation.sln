@@ -7,9 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Client", "Client\Client.csp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnitTest", "UnitTest\UnitTest.csproj", "{30101BD9-E9F7-4E32-AFE2-2421944A280B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SoccerLeague", "SoccerLeague\SoccerLeague.csproj", "{E3C0356E-A910-449D-AC8F-7CC7FEB5C97C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sandbox", "Sandbox\Sandbox.csproj", "{E3C0356E-A910-449D-AC8F-7CC7FEB5C97C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csproj", "{6F4E0C4A-D2EF-4DAB-B9E6-C9B65B960854}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Domain", "Domain\Domain.csproj", "{6F4E0C4A-D2EF-4DAB-B9E6-C9B65B960854}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

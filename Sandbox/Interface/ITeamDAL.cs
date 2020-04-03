@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace SoccerLeague.Interface
+namespace Sandbox.Interface
 {
     public interface ITeamDAL
     {

@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Domain\Domain.csproj" />
-    <ProjectReference Include="..\SoccerLeague\SoccerLeague.csproj" />
+    <ProjectReference Include="..\Sandbox\Sandbox.csproj" />
   </ItemGroup>
 
 </Project>

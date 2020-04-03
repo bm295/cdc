@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using SoccerLeague.Interface;
+using Sandbox.Interface;
 
-namespace SoccerLeague.Implement
+namespace Sandbox.Implement
 {
     public class TeamDAL : ITeamDAL
     {

@@ -1,5 +1,5 @@
-﻿using SoccerLeague.Implement.Runner;
-using SoccerLeague.Interface;
+﻿using Sandbox.Implement.Runner;
+using Sandbox.Interface;
 using System;
 using System.Collections.Generic;
 
@@ -12,7 +12,8 @@ namespace Client
             Dictionary<int, IRunner> runners = new Dictionary<int, IRunner>
             {
                 { 1, new DependencyInjectionRunner() },
-                { 2, new DataTypePerformanceRunner() }
+                { 2, new DataTypePerformanceRunner() },
+                { 3, new LoopPerformanceRunner() }
             };
             foreach (var runner in runners)
             {
