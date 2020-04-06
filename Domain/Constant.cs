@@ -6,6 +6,6 @@ namespace Domain
 {
     public static class Constant
     {
-        public static int LOOP_COUNT = 100000000;
+        public static readonly int LOOP_COUNT = 100000000;
     }
 }

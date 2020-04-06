@@ -13,7 +13,8 @@ namespace Client
             {
                 { 1, new DependencyInjectionRunner() },
                 { 2, new DataTypePerformanceRunner() },
-                { 3, new LoopPerformanceRunner() }
+                { 3, new LoopPerformanceRunner() },
+                { 4, new FailSoftArrayRunner() }
             };
             foreach (var runner in runners)
             {
