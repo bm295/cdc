@@ -1,33 +1,35 @@
-﻿using Sandbox.Implement.Runner;
+using Sandbox.Implement.Runner;
 using Sandbox.Interface;
-using System;
-using System.Collections.Generic;
 
-namespace Client
+namespace Client;
+
+internal static class Program
 {
-    class Program
+    private static void Main(string[] args)
     {
-        static void Main(string[] args)
+        Dictionary<int, IRunner> runners = new()
         {
-            Dictionary<int, IRunner> runners = new Dictionary<int, IRunner>
-            {
-                { 1, new DependencyInjectionRunner() },
-                { 2, new DataTypePerformanceRunner() },
-                { 3, new LoopPerformanceRunner() },
-                { 4, new FailSoftArrayRunner() }
-            };
-            foreach (var runner in runners)
-            {
-                Console.WriteLine($"Option {runner.Key}: {runner.Value.GetType().Name}");
-            }
+            { 1, new DependencyInjectionRunner() },
+            { 2, new DataTypePerformanceRunner() },
+            { 3, new LoopPerformanceRunner() },
+            { 4, new FailSoftArrayRunner() },
+            { 5, new AsyncNumberToStringRunner() }
+        };
 
-            Console.Write("Enter option: ");
-            int input = Convert.ToInt32(Console.ReadLine());
-            
-            var currentRunner = runners[input];
-            Console.WriteLine(currentRunner.GetType().Name);
-            currentRunner.RunExample();
-            Console.ReadKey();
+        foreach ((int option, IRunner runner) in runners)
+        {
+            Console.WriteLine($"Option {option}: {runner.GetType().Name}");
         }
+
+        Console.Write("Enter option: ");
+        string? input = Console.ReadLine();
+        if (!int.TryParse(input, out int optionSelected) || !runners.TryGetValue(optionSelected, out IRunner? currentRunner))
+        {
+            Console.WriteLine("Invalid option.");
+            return;
+        }
+
+        Console.WriteLine(currentRunner.GetType().Name);
+        currentRunner.RunExample();
     }
 }
