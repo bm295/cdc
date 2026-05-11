@@ -1,3 +1,0 @@
-"opencover.4.7.922\OpenCover.Console.exe" -target:"C:\Program Files\dotnet\dotnet.exe" -targetargs:"test D:\github\InterviewPreparation\UnitTest" -output:"D:\github\InterviewPreparation\CoverageReports\Results.xml" -filter:"+[*]* -[UnitTest*]*" -register:user
-
-"ReportGenerator_4.5.6\netcoreapp3.0\ReportGenerator.exe" -reports:"D:\github\InterviewPreparation\CoverageReports\Results.xml" -targetdir:"D:\github\InterviewPreparation\CoverageReports" -assemblyfilters:"-xunit.*"
