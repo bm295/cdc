@@ -1,33 +1,41 @@
 # Debezium CDC Demo (C#)
 
-This repository is focused on Change Data Capture (CDC) using Debezium and includes a **C# Kafka consumer**.
+This repository demonstrates a local Change Data Capture pipeline:
+
+```text
+MySQL -> Debezium Connect -> Kafka -> C# worker consumer
+```
 
 ## Stack
 
-- MySQL (source database)
+- MySQL source database
 - Kafka + Zookeeper
 - Debezium Connect
 - Kafka UI
-- C# consumer (`Confluent.Kafka`)
+- C# worker service using `Confluent.Kafka`
+
+## How CDC Works
+
+See [docs/cdc-flow.md](docs/cdc-flow.md) for the end-to-end flow, component responsibilities, event shape, retry behavior, offset commits, and DLQ path.
 
 ## Run
 
 ```bash
-docker compose up -d --build
+docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
-## Register Debezium Connector
-
-```bash
-curl -X POST http://localhost:8083/connectors \
-  -H 'Content-Type: application/json' \
-  -d @connectors/mysql-inventory.json
-```
+The Compose setup waits for Kafka/MySQL readiness and registers the Debezium connector through the `connector-init` service.
 
 Verify connector status:
 
 ```bash
 curl http://localhost:8083/connectors/inventory-connector/status
+```
+
+If you want to register or update the connector manually from PowerShell:
+
+```powershell
+./deploy/scripts/register-connectors.ps1
 ```
 
 ## Generate CDC Events
@@ -38,6 +46,7 @@ docker exec -it mysql mysql -uroot -pdebezium
 
 ```sql
 USE inventory;
+
 INSERT INTO customers(first_name, last_name, email)
 VALUES ('John', 'Doe', 'john.doe@example.com');
 
@@ -51,11 +60,18 @@ WHERE first_name = 'John' AND last_name = 'Doe';
 
 Observe CDC events in:
 
-- consumer logs (`docker logs -f consumer`)
-- Kafka UI at http://localhost:8080
+- consumer logs: `docker logs -f consumer`
+- Kafka UI: http://localhost:8080
+- dead-letter topic: `cdc.dead-letter`
 
-## Tear down
+## Test
 
 ```bash
-docker compose down -v
+dotnet test cdc.sln
+```
+
+## Tear Down
+
+```bash
+docker compose -f deploy/docker-compose.yml down -v
 ```

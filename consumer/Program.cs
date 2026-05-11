@@ -1,35 +1,28 @@
-using System.Text;
-using Confluent.Kafka;
+using CdcConsumer;
+using CdcConsumer.Application;
+using CdcConsumer.Application.Customers;
+using CdcConsumer.Infrastructure.Kafka;
+using CdcConsumer.Options;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-var bootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "kafka:29092";
-var topic = Environment.GetEnvironmentVariable("TOPIC") ?? "mysql-server-1.inventory.customers";
+var builder = Host.CreateApplicationBuilder(args);
 
-var config = new ConsumerConfig
+builder.Services.Configure<KafkaOptions>(
+    builder.Configuration.GetSection(KafkaOptions.SectionName));
+
+builder.Services.PostConfigure<KafkaOptions>(options =>
 {
-    BootstrapServers = bootstrapServers,
-    GroupId = "cdc-consumer-group",
-    AutoOffsetReset = AutoOffsetReset.Earliest,
-    EnableAutoCommit = true
-};
+    options.ApplyLegacyEnvironmentVariables();
+    options.Validate();
+});
 
-while (true)
-{
-    try
-    {
-        using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        consumer.Subscribe(topic);
+builder.Services.AddSingleton<IDebeziumEnvelopeParser, DebeziumEnvelopeParser>();
+builder.Services.AddSingleton<IChangeHandler<CustomerRecord>, CustomerChangeHandler>();
+builder.Services.AddSingleton<IChangeDispatcher, ChangeDispatcher>();
+builder.Services.AddSingleton<IKafkaConsumerFactory, KafkaConsumerFactory>();
+builder.Services.AddSingleton<IDeadLetterProducer, KafkaDeadLetterProducer>();
+builder.Services.AddSingleton<IKafkaConsumerLoop, KafkaConsumerLoop>();
+builder.Services.AddHostedService<CdcConsumerWorker>();
 
-        Console.WriteLine($"Listening CDC events from topic: {topic}");
-
-        while (true)
-        {
-            var result = consumer.Consume(CancellationToken.None);
-            Console.WriteLine(result.Message.Value);
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Consumer waiting for Kafka... {ex.Message}");
-        await Task.Delay(TimeSpan.FromSeconds(3));
-    }
-}
+await builder.Build().RunAsync();
