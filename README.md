@@ -13,6 +13,7 @@ MySQL -> Debezium Connect -> Kafka -> C# worker consumer
 - Debezium Connect
 - Kafka UI
 - C# worker service using `Confluent.Kafka`
+- Replica DB table (`inventory.customers_replica`) updated by the worker
 
 ## How CDC Works
 
@@ -58,11 +59,12 @@ DELETE FROM customers
 WHERE first_name = 'John' AND last_name = 'Doe';
 ```
 
-Observe CDC events in:
+Observe CDC events and replicated rows in:
 
 - consumer logs: `docker logs -f consumer`
 - Kafka UI: http://localhost:8080
 - dead-letter topic: `cdc.dead-letter`
+- replica table check: `SELECT * FROM inventory.customers_replica;`
 
 ## Test
 

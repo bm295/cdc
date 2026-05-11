@@ -1,6 +1,6 @@
 # CDC Flow
 
-This repository runs a local CDC pipeline that captures row changes from MySQL, publishes them to Kafka through Debezium, and processes them with a C# worker service.
+This repository runs a local CDC pipeline that captures row changes from MySQL, publishes them to Kafka through Debezium, and processes them with a C# worker service that also maintains a replica table in MySQL.
 
 ```text
 MySQL inventory.customers
@@ -9,6 +9,7 @@ MySQL inventory.customers
   -> Kafka topic mysql-server-1.inventory.customers
   -> C# consumer worker
   -> CustomerChangeHandler
+  -> MySQL inventory.customers_replica
 ```
 
 ## Component Flow
@@ -23,6 +24,7 @@ flowchart LR
     F --> G[DebeziumEnvelopeParser]
     G --> H[ChangeDispatcher]
     H --> I[CustomerChangeHandler]
+    I --> L[MySQL table<br/>inventory.customers_replica]
     F --> J[Kafka offset commit]
     F --> K[DLQ topic<br/>cdc.dead-letter]
 ```
@@ -137,6 +139,7 @@ sequenceDiagram
     participant Parser as DebeziumEnvelopeParser
     participant Dispatcher as ChangeDispatcher
     participant Handler as CustomerChangeHandler
+    participant Replica as inventory.customers_replica
     participant DLQ as cdc.dead-letter
 
     Kafka->>Loop: Consume message
@@ -144,6 +147,7 @@ sequenceDiagram
     Parser->>Loop: ChangeEvent<CustomerRecord>
     Loop->>Dispatcher: Dispatch message
     Dispatcher->>Handler: Handle customer change
+    Handler->>Replica: Upsert/Delete/Truncate
     Handler->>Loop: Success
     Loop->>Kafka: Store and commit offset
 
@@ -160,6 +164,7 @@ Runtime responsibilities:
 - `DebeziumEnvelopeParser`: converts Debezium JSON into typed `ChangeEvent<T>`
 - `ChangeDispatcher`: routes parsed events to the right handler
 - `CustomerChangeHandler`: handles `CustomerRecord` create, update, delete, snapshot, and truncate events
+- `MySqlReplicaCustomerStore`: persists CDC operations into `inventory.customers_replica`
 - `KafkaDeadLetterProducer`: publishes poison messages to `cdc.dead-letter`
 
 ## Offset And Retry Behavior
@@ -187,6 +192,7 @@ Configuration lives in `consumer/appsettings.json` and can be overridden through
 - `Kafka__RetryDelaySeconds`
 - `Kafka__MaxProcessingAttempts`
 - `Kafka__EnableDeadLetterTopic`
+- `ReplicaDb__ConnectionString`
 
 ## How To Trace One Change
 
@@ -221,7 +227,13 @@ Configuration lives in `consumer/appsettings.json` and can be overridden through
    http://localhost:8080
    ```
 
-5. Check connector health:
+5. Check replica table rows:
+
+   ```bash
+   docker exec -it mysql mysql -uroot -pdebezium -e "SELECT * FROM inventory.customers_replica;"
+   ```
+
+6. Check connector health:
 
    ```bash
    curl http://localhost:8083/connectors/inventory-connector/status
@@ -239,6 +251,9 @@ deploy/connectors/mysql-inventory.config.json
 deploy/mysql-init/01-seed.sql
   Creates and seeds inventory.customers.
 
+deploy/mysql-init/02-replica.sql
+  Creates inventory.customers_replica used by the consumer write model.
+
 consumer/Program.cs
   Builds the worker host and registers services.
 
@@ -252,7 +267,10 @@ consumer/Application/ChangeDispatcher.cs
   Routes parsed events to application handlers.
 
 consumer/Application/Customers/CustomerChangeHandler.cs
-  Handles customer-specific CDC events.
+  Handles customer-specific CDC events and applies them to replica storage.
+
+consumer/Infrastructure/ReplicaDb/MySqlReplicaCustomerStore.cs
+  Executes upsert/delete/truncate SQL against inventory.customers_replica.
 
 consumer/Contracts/*
   Shared event, operation, Debezium, and customer models.
