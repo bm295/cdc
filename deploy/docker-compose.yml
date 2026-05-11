@@ -119,3 +119,4 @@ services:
       Kafka__RetryDelaySeconds: 3
       Kafka__MaxProcessingAttempts: 3
       Kafka__EnableDeadLetterTopic: "true"
+      ReplicaDb__ConnectionString: Server=mysql;Port=3306;Database=inventory;User ID=root;Password=debezium;

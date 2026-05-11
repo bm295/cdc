@@ -1,8 +1,9 @@
+using CdcConsumer.Infrastructure.ReplicaDb;
 using Microsoft.Extensions.Logging;
 
 namespace CdcConsumer.Application.Customers;
 
-public sealed class CustomerChangeHandler(ILogger<CustomerChangeHandler> logger) : IChangeHandler<CustomerRecord>
+public sealed class CustomerChangeHandler(ILogger<CustomerChangeHandler> logger, IReplicaCustomerStore replicaStore) : IChangeHandler<CustomerRecord>
 {
     public Task HandleAsync(ChangeEvent<CustomerRecord> changeEvent, CancellationToken cancellationToken)
     {
@@ -12,18 +13,26 @@ public sealed class CustomerChangeHandler(ILogger<CustomerChangeHandler> logger)
         {
             case ChangeOperation.Create:
             case ChangeOperation.Read:
-                LogUpsert(changeEvent, Require(changeEvent.After, changeEvent.Operation, "after"));
+                var createdOrRead = Require(changeEvent.After, changeEvent.Operation, "after");
+                await replicaStore.UpsertAsync(createdOrRead, cancellationToken);
+                LogUpsert(changeEvent, createdOrRead);
                 break;
 
             case ChangeOperation.Update:
-                LogUpdate(changeEvent, Require(changeEvent.After, changeEvent.Operation, "after"));
+                var updated = Require(changeEvent.After, changeEvent.Operation, "after");
+                await replicaStore.UpsertAsync(updated, cancellationToken);
+                LogUpdate(changeEvent, updated);
                 break;
 
             case ChangeOperation.Delete:
-                LogDelete(changeEvent, Require(changeEvent.Before, changeEvent.Operation, "before"));
+                var deleted = Require(changeEvent.Before, changeEvent.Operation, "before");
+                await replicaStore.DeleteAsync(deleted.Id, cancellationToken);
+                LogDelete(changeEvent, deleted);
                 break;
 
             case ChangeOperation.Truncate:
+                await replicaStore.TruncateAsync(cancellationToken);
+
                 logger.LogWarning(
                     "Received truncate event for {Database}.{Table} at {Topic}[{Partition}]@{Offset}.",
                     changeEvent.Source?.Database,

@@ -2,6 +2,7 @@ using CdcConsumer;
 using CdcConsumer.Application;
 using CdcConsumer.Application.Customers;
 using CdcConsumer.Infrastructure.Kafka;
+using CdcConsumer.Infrastructure.ReplicaDb;
 using CdcConsumer.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +18,16 @@ builder.Services.PostConfigure<KafkaOptions>(options =>
     options.Validate();
 });
 
+builder.Services.Configure<ReplicaDbOptions>(
+    builder.Configuration.GetSection(ReplicaDbOptions.SectionName));
+
+builder.Services.PostConfigure<ReplicaDbOptions>(options =>
+{
+    options.Validate();
+});
+
 builder.Services.AddSingleton<IDebeziumEnvelopeParser, DebeziumEnvelopeParser>();
+builder.Services.AddSingleton<IReplicaCustomerStore, MySqlReplicaCustomerStore>();
 builder.Services.AddSingleton<IChangeHandler<CustomerRecord>, CustomerChangeHandler>();
 builder.Services.AddSingleton<IChangeDispatcher, ChangeDispatcher>();
 builder.Services.AddSingleton<IKafkaConsumerFactory, KafkaConsumerFactory>();
