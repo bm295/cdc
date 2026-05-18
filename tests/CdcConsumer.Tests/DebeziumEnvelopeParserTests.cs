@@ -72,6 +72,39 @@ public sealed class DebeziumEnvelopeParserTests
     }
 
     [Fact]
+    public void Parse_KafkaConnectJsonEnvelope_ReturnsPayloadChange()
+    {
+        var change = _parser.Parse<CustomerRecord>(
+            Message("""
+            {
+              "schema": {
+                "type": "struct"
+              },
+              "payload": {
+                "before": null,
+                "after": {
+                  "id": 2,
+                  "first_name": "Maggie",
+                  "last_name": "Smith",
+                  "email": "maggie@example.com"
+                },
+                "source": {
+                  "db": "inventory",
+                  "table": "customers",
+                  "ts_ms": 1710000000000
+                },
+                "op": "r",
+                "ts_ms": 1710000001000
+              }
+            }
+            """));
+
+        Assert.Equal(ChangeOperation.Read, change.Operation);
+        Assert.Equal(2, change.After?.Id);
+        Assert.Equal("inventory", change.Source?.Database);
+    }
+
+    [Fact]
     public void Parse_DeleteEvent_ReturnsBeforePayload()
     {
         var change = _parser.Parse<CustomerRecord>(

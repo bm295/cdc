@@ -5,7 +5,7 @@ namespace CdcConsumer.Application.Customers;
 
 public sealed class CustomerChangeHandler(ILogger<CustomerChangeHandler> logger, IReplicaCustomerStore replicaStore) : IChangeHandler<CustomerRecord>
 {
-    public Task HandleAsync(ChangeEvent<CustomerRecord> changeEvent, CancellationToken cancellationToken)
+    public async Task HandleAsync(ChangeEvent<CustomerRecord> changeEvent, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -46,7 +46,6 @@ public sealed class CustomerChangeHandler(ILogger<CustomerChangeHandler> logger,
                 throw new InvalidDataException($"Unsupported customer change operation '{changeEvent.Operation}'.");
         }
 
-        return Task.CompletedTask;
     }
 
     private void LogUpsert(ChangeEvent<CustomerRecord> changeEvent, CustomerRecord customer)

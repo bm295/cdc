@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CDC Flow Playground</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>CDC Flow Playground</h1>
+      <p>MySQL -> Debezium -> Kafka -> C# worker -> replica</p>
+    </div>
+    <div class="status-strip" aria-live="polite">
+      <span id="connectorStatus" class="status-chip muted">Connect: loading</span>
+      <span id="sourceStatus" class="status-chip muted">Source: 0 rows</span>
+      <span id="replicaStatus" class="status-chip muted">Replica: 0 rows</span>
+      <span id="refreshStatus" class="status-chip muted">Refreshing</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <section class="panel action-panel" aria-labelledby="actionsTitle">
+      <div class="panel-heading">
+        <h2 id="actionsTitle">Actions</h2>
+        <button id="refreshButton" class="icon-button" title="Refresh now" aria-label="Refresh now"></button>
+      </div>
+
+      <div class="field-grid">
+        <label>
+          <span>Customer id</span>
+          <input id="customerIdInput" inputmode="numeric" placeholder="latest">
+        </label>
+        <label>
+          <span>First name</span>
+          <input id="firstNameInput" placeholder="Demo">
+        </label>
+        <label>
+          <span>Last name</span>
+          <input id="lastNameInput" placeholder="Customer">
+        </label>
+        <label>
+          <span>Email</span>
+          <input id="emailInput" type="email" placeholder="auto">
+        </label>
+      </div>
+
+      <div class="button-grid">
+        <button class="action-button" data-action="insert"></button>
+        <button class="action-button" data-action="update"></button>
+        <button class="action-button" data-action="delete"></button>
+        <button class="action-button" data-action="seed"></button>
+        <button class="action-button danger" data-action="truncate"></button>
+        <button class="action-button danger" data-action="poison"></button>
+      </div>
+
+      <div id="actionResult" class="action-result" aria-live="polite"></div>
+    </section>
+
+    <section class="panel flow-panel" aria-labelledby="pipelineTitle">
+      <div class="panel-heading">
+        <h2 id="pipelineTitle">Pipeline</h2>
+        <button id="architectureToggle" class="toggle-button" aria-pressed="true"></button>
+      </div>
+      <div id="pipeline" class="pipeline" aria-label="CDC pipeline"></div>
+    </section>
+
+    <section class="panel inspector-panel" aria-labelledby="inspectorTitle">
+      <div class="panel-heading">
+        <h2 id="inspectorTitle">Inspector</h2>
+      </div>
+      <div id="inspectorBody" class="inspector-body"></div>
+    </section>
+
+    <section class="panel timeline-panel" aria-labelledby="timelineTitle">
+      <div class="panel-heading">
+        <h2 id="timelineTitle">Event Timeline</h2>
+        <span id="lastRefresh" class="subtle-text">Waiting for data</span>
+      </div>
+      <ol id="timeline" class="timeline"></ol>
+    </section>
+
+    <section class="panel topic-panel" aria-labelledby="topicTitle">
+      <div class="panel-heading">
+        <h2 id="topicTitle">Kafka Topics</h2>
+      </div>
+      <div class="topic-columns">
+        <div>
+          <h3>Customer CDC</h3>
+          <div id="customerMessages" class="message-list"></div>
+        </div>
+        <div>
+          <h3>Dead Letter</h3>
+          <div id="deadLetterMessages" class="message-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel table-panel" aria-labelledby="tablesTitle">
+      <div class="panel-heading">
+        <h2 id="tablesTitle">Tables</h2>
+      </div>
+      <div class="table-columns">
+        <div>
+          <h3>inventory.customers</h3>
+          <div id="sourceTable"></div>
+        </div>
+        <div>
+          <h3>inventory.customers_replica</h3>
+          <div id="replicaTable"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="emptyTemplate">
+    <div class="empty-state">No rows</div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

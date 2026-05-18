@@ -1,33 +1,6 @@
 # CDC Flow
 
-This repository runs a local CDC pipeline that captures row changes from MySQL, publishes them to Kafka through Debezium, and processes them with a C# worker service that also maintains a replica table in MySQL.
-
-```text
-MySQL inventory.customers
-  -> MySQL binlog
-  -> Debezium MySQL connector
-  -> Kafka topic mysql-server-1.inventory.customers
-  -> C# consumer worker
-  -> CustomerChangeHandler
-  -> MySQL inventory.customers_replica
-```
-
-## Component Flow
-
-```mermaid
-flowchart LR
-    A[MySQL inventory database] --> B[MySQL binlog]
-    B --> C[Debezium Connect]
-    C --> D[Kafka topic<br/>mysql-server-1.inventory.customers]
-    D --> E[C# worker<br/>CdcConsumerWorker]
-    E --> F[KafkaConsumerLoop]
-    F --> G[DebeziumEnvelopeParser]
-    G --> H[ChangeDispatcher]
-    H --> I[CustomerChangeHandler]
-    I --> L[MySQL table<br/>inventory.customers_replica]
-    F --> J[Kafka offset commit]
-    F --> K[DLQ topic<br/>cdc.dead-letter]
-```
+This document follows the runtime flow of one customer-table change through the local CDC pipeline. For architecture characteristics, decisions, style, and logical components, see [architecture.md](architecture.md).
 
 ## Startup Flow
 
@@ -37,11 +10,13 @@ sequenceDiagram
     participant MySQL as MySQL
     participant Kafka as Kafka
     participant Connect as Debezium Connect
+    participant Bootstrap as replica-bootstrap
     participant Init as connector-init
     participant Consumer as C# consumer
 
     Compose->>MySQL: Start database and seed inventory.customers
     Compose->>Kafka: Start Kafka broker
+    Bootstrap->>MySQL: Reconcile inventory.customers_replica from inventory.customers
     Compose->>Connect: Start Kafka Connect after MySQL and Kafka are healthy
     Init->>Connect: PUT /connectors/inventory-connector/config
     Connect->>MySQL: Read schema and binlog
@@ -49,16 +24,7 @@ sequenceDiagram
     Consumer->>Kafka: Subscribe to mysql-server-1.inventory.customers
 ```
 
-The startup wiring lives in `deploy/docker-compose.yml`.
-
-Important services:
-
-- `mysql`: source database seeded by `deploy/mysql-init/01-seed.sql`
-- `kafka`: local Kafka broker
-- `connect`: Debezium Kafka Connect runtime
-- `connector-init`: registers or updates the Debezium connector
-- `consumer`: C# worker that reads CDC events
-- `kafka-ui`: browser UI at http://localhost:8080
+The startup sequence is defined in `deploy/docker-compose.yml`.
 
 ## Connector Flow
 
@@ -130,7 +96,7 @@ Operation codes:
 
 ## Consumer Processing Flow
 
-The consumer starts in `consumer/Program.cs` and wires the app with dependency injection.
+After the worker consumes a Kafka message, it parses the Debezium envelope, dispatches the typed change event, applies the replica update, and then stores and commits the Kafka offset.
 
 ```mermaid
 sequenceDiagram
@@ -157,31 +123,7 @@ sequenceDiagram
     end
 ```
 
-Runtime responsibilities:
-
-- `CdcConsumerWorker`: hosted background service entrypoint
-- `KafkaConsumerLoop`: consumes Kafka messages, retries processing, commits offsets, publishes DLQ messages
-- `DebeziumEnvelopeParser`: converts Debezium JSON into typed `ChangeEvent<T>`
-- `ChangeDispatcher`: routes parsed events to the right handler
-- `CustomerChangeHandler`: handles `CustomerRecord` create, update, delete, snapshot, and truncate events
-- `MySqlReplicaCustomerStore`: persists CDC operations into `inventory.customers_replica`
-- `KafkaDeadLetterProducer`: publishes poison messages to `cdc.dead-letter`
-
-## Offset And Retry Behavior
-
-The consumer uses manual offset commits.
-
-```text
-consume -> parse -> handle -> commit offset
-```
-
-If handling fails:
-
-```text
-consume -> parse or handle fails -> retry -> retry -> DLQ -> commit offset
-```
-
-This matters because Kafka should only advance the consumer group's offset after the app has either handled the event or intentionally moved it to the dead-letter topic.
+## Runtime Configuration
 
 Configuration lives in `consumer/appsettings.json` and can be overridden through Compose environment variables:
 
@@ -202,7 +144,15 @@ Configuration lives in `consumer/appsettings.json` and can be overridden through
    docker compose -f deploy/docker-compose.yml up -d --build
    ```
 
-2. Insert or update a customer:
+2. Open the demo web app:
+
+   ```text
+   http://localhost:5173
+   ```
+
+3. Use the web app Actions panel to insert, update, delete, truncate, seed, or publish a poison event.
+
+4. Or insert/update a customer manually:
 
    ```bash
    docker exec -it mysql mysql -uroot -pdebezium
@@ -215,63 +165,26 @@ Configuration lives in `consumer/appsettings.json` and can be overridden through
    VALUES ('John', 'Doe', 'john.doe@example.com');
    ```
 
-3. Watch the consumer:
+5. Watch the consumer:
 
    ```bash
    docker logs -f consumer
    ```
 
-4. Inspect the Kafka topic in Kafka UI:
+6. Inspect the Kafka topic in Kafka UI:
 
    ```text
    http://localhost:8080
    ```
 
-5. Check replica table rows:
+7. Check replica table rows:
 
    ```bash
    docker exec -it mysql mysql -uroot -pdebezium -e "SELECT * FROM inventory.customers_replica;"
    ```
 
-6. Check connector health:
+8. Check connector health:
 
    ```bash
    curl http://localhost:8083/connectors/inventory-connector/status
    ```
-
-## File Map
-
-```text
-deploy/docker-compose.yml
-  Defines MySQL, Kafka, Debezium Connect, connector init, Kafka UI, and the consumer.
-
-deploy/connectors/mysql-inventory.config.json
-  Debezium MySQL connector config used by connector-init.
-
-deploy/mysql-init/01-seed.sql
-  Creates and seeds inventory.customers.
-
-deploy/mysql-init/02-replica.sql
-  Creates inventory.customers_replica used by the consumer write model.
-
-consumer/Program.cs
-  Builds the worker host and registers services.
-
-consumer/Infrastructure/Kafka/KafkaConsumerLoop.cs
-  Owns consuming, retrying, DLQ publishing, and offset commits.
-
-consumer/Application/DebeziumEnvelopeParser.cs
-  Parses raw Debezium JSON into typed change events.
-
-consumer/Application/ChangeDispatcher.cs
-  Routes parsed events to application handlers.
-
-consumer/Application/Customers/CustomerChangeHandler.cs
-  Handles customer-specific CDC events and applies them to replica storage.
-
-consumer/Infrastructure/ReplicaDb/MySqlReplicaCustomerStore.cs
-  Executes upsert/delete/truncate SQL against inventory.customers_replica.
-
-consumer/Contracts/*
-  Shared event, operation, Debezium, and customer models.
-```

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CdcConsumer.Application;
 
@@ -29,7 +30,7 @@ public sealed class DebeziumEnvelopeParser : IDebeziumEnvelopeParser
 
         try
         {
-            envelope = JsonSerializer.Deserialize<DebeziumEnvelope<T>>(message.Value, JsonOptions);
+            envelope = DeserializeEnvelope<T>(message.Value);
         }
         catch (JsonException ex)
         {
@@ -55,6 +56,24 @@ public sealed class DebeziumEnvelopeParser : IDebeziumEnvelopeParser
             envelope.After,
             envelope.Source,
             ToDateTimeOffset(envelope.TimestampMilliseconds ?? envelope.Source?.TimestampMilliseconds));
+    }
+
+    private static DebeziumEnvelope<T>? DeserializeEnvelope<T>(string value)
+    {
+        using var document = JsonDocument.Parse(value);
+        var root = document.RootElement;
+
+        if (root.TryGetProperty("payload", out var payload))
+        {
+            if (payload.ValueKind is JsonValueKind.Null)
+            {
+                return null;
+            }
+
+            return payload.Deserialize<DebeziumEnvelope<T>>(JsonOptions);
+        }
+
+        return root.Deserialize<DebeziumEnvelope<T>>(JsonOptions);
     }
 
     private static DateTimeOffset? ToDateTimeOffset(long? milliseconds)

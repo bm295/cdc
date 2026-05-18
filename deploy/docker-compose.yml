@@ -90,6 +90,40 @@ services:
         --data-binary @/connectors/mysql-inventory.config.json
         && echo 'inventory-connector registered'
 
+  replica-bootstrap:
+    image: debezium/example-mysql:2.6
+    container_name: replica-bootstrap
+    depends_on:
+      mysql:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        until mysql -hmysql -uroot -pdebezium -e "SELECT 1" >/dev/null 2>&1; do
+          echo 'waiting for MySQL SQL access';
+          sleep 2;
+        done;
+        mysql -hmysql -uroot -pdebezium inventory -e "
+        CREATE TABLE IF NOT EXISTS customers_replica (
+          id INT PRIMARY KEY,
+          first_name VARCHAR(255) NOT NULL,
+          last_name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL
+        );
+        INSERT INTO customers_replica (id, first_name, last_name, email)
+        SELECT id, first_name, last_name, email
+        FROM customers
+        ON DUPLICATE KEY UPDATE
+          first_name = VALUES(first_name),
+          last_name = VALUES(last_name),
+          email = VALUES(email);
+        DELETE replica
+        FROM customers_replica replica
+        LEFT JOIN customers source ON source.id = replica.id
+        WHERE source.id IS NULL;
+        "
+        && echo 'customers_replica bootstrapped from customers'
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -111,6 +145,8 @@ services:
         condition: service_healthy
       connector-init:
         condition: service_completed_successfully
+      replica-bootstrap:
+        condition: service_completed_successfully
     environment:
       Kafka__BootstrapServers: kafka:29092
       Kafka__Topic: mysql-server-1.inventory.customers
@@ -120,3 +156,31 @@ services:
       Kafka__MaxProcessingAttempts: 3
       Kafka__EnableDeadLetterTopic: "true"
       ReplicaDb__ConnectionString: Server=mysql;Port=3306;Database=inventory;User ID=root;Password=debezium;
+
+  demo-web:
+    build:
+      context: ../demo/DemoWeb
+    container_name: demo-web
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      connect:
+        condition: service_healthy
+      connector-init:
+        condition: service_completed_successfully
+      replica-bootstrap:
+        condition: service_completed_successfully
+      consumer:
+        condition: service_started
+    ports:
+      - "5173:8080"
+    environment:
+      CdcDemo__SourceConnectionString: Server=mysql;Port=3306;Database=inventory;User ID=root;Password=debezium;
+      CdcDemo__ReplicaConnectionString: Server=mysql;Port=3306;Database=inventory;User ID=root;Password=debezium;
+      CdcDemo__KafkaBootstrapServers: kafka:29092
+      CdcDemo__CustomerTopic: mysql-server-1.inventory.customers
+      CdcDemo__DeadLetterTopic: cdc.dead-letter
+      CdcDemo__KafkaConnectBaseUrl: http://connect:8083
+      CdcDemo__ConnectorName: inventory-connector
