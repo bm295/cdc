@@ -17,7 +17,7 @@ public sealed class CdcDemoDashboard(
     {
         var warnings = new List<string>();
 
-        var connector = await GuardAsync(
+        var connectorTask = GuardAsync(
             () => connectClient.GetStatusAsync(cancellationToken),
             "Kafka Connect",
             new ConnectorStatusDto(
@@ -28,37 +28,44 @@ public sealed class CdcDemoDashboard(
                 "Connector status could not be loaded."),
             warnings);
 
-        var sourceCustomers = await GuardAsync(
+        var sourceCustomersTask = GuardAsync(
             () => store.GetSourceCustomersAsync(cancellationToken),
             "source table",
             Array.Empty<CustomerRow>(),
             warnings);
 
-        var replicaCustomers = await GuardAsync(
+        var replicaCustomersTask = GuardAsync(
             () => store.GetReplicaCustomersAsync(cancellationToken),
             "replica table",
             Array.Empty<CustomerRow>(),
             warnings);
 
-        var customerMessages = await GuardAsync(
+        var customerMessagesTask = GuardAsync(
             () => topicInspector.ReadRecentAsync(_options.CustomerTopic, _options.RecentMessageLimit, false, cancellationToken),
             _options.CustomerTopic,
             Array.Empty<TopicMessageDto>(),
             warnings);
 
-        var deadLetterMessages = await GuardAsync(
+        var deadLetterMessagesTask = GuardAsync(
             () => topicInspector.ReadRecentAsync(_options.DeadLetterTopic, _options.RecentMessageLimit, true, cancellationToken),
             _options.DeadLetterTopic,
             Array.Empty<TopicMessageDto>(),
             warnings);
 
+        await Task.WhenAll(
+            connectorTask,
+            sourceCustomersTask,
+            replicaCustomersTask,
+            customerMessagesTask,
+            deadLetterMessagesTask);
+
         return new DashboardSnapshot(
             DateTimeOffset.UtcNow,
-            connector,
-            sourceCustomers,
-            replicaCustomers,
-            customerMessages,
-            deadLetterMessages,
+            await connectorTask,
+            await sourceCustomersTask,
+            await replicaCustomersTask,
+            await customerMessagesTask,
+            await deadLetterMessagesTask,
             warnings);
     }
 
@@ -110,7 +117,11 @@ public sealed class CdcDemoDashboard(
         }
         catch (Exception ex)
         {
-            warnings.Add($"{label}: {ex.Message}");
+            lock (warnings)
+            {
+                warnings.Add($"{label}: {ex.Message}");
+            }
+
             return fallback;
         }
     }
