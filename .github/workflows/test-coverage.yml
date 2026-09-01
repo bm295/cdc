@@ -1,0 +1,62 @@
+name: Test and Coverage
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore cdc.sln
+
+      - name: Build
+        run: dotnet build cdc.sln --configuration Release --no-restore
+
+      - name: Test with coverage
+        run: >
+          dotnet test cdc.sln
+          --configuration Release
+          --no-build
+          --logger "trx"
+          --results-directory TestResults
+          --collect:"XPlat Code Coverage"
+
+      - name: Install coverage report tool
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage summary
+        run: >
+          reportgenerator
+          -reports:"TestResults/**/coverage.cobertura.xml"
+          -targetdir:"CoverageReport"
+          -reporttypes:"TextSummary;MarkdownSummaryGithub"
+
+      - name: Show coverage in output
+        run: |
+          cat CoverageReport/Summary.txt
+          cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results and coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-and-coverage
+          path: |
+            TestResults
+            CoverageReport

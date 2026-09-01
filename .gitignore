@@ -2,5 +2,7 @@
 bin
 obj
 CoverageReports
+CoverageReport
+TestResults
 opencover.4.7.922
 ReportGenerator_4.5.6

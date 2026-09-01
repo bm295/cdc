@@ -132,6 +132,29 @@ public sealed class DebeziumEnvelopeParserTests
     }
 
     [Fact]
+    public void Parse_TruncateEvent_ReturnsTruncateChange()
+    {
+        var change = _parser.Parse<CustomerRecord>(
+            Message("""
+            {
+              "before": null,
+              "after": null,
+              "source": {
+                "db": "inventory",
+                "table": "customers"
+              },
+              "op": "t",
+              "ts_ms": 1710000001000
+            }
+            """));
+
+        Assert.Equal(ChangeOperation.Truncate, change.Operation);
+        Assert.Null(change.Before);
+        Assert.Null(change.After);
+        Assert.Equal("customers", change.Source?.Table);
+    }
+
+    [Fact]
     public void Parse_Tombstone_ReturnsTombstoneChange()
     {
         var change = _parser.Parse<CustomerRecord>(
