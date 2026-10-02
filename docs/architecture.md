@@ -54,7 +54,7 @@ If processing fails repeatedly, the message is sent to `cdc.dead-letter` and the
 
 ### Keep Table-Specific Logic In Handlers
 
-`ChangeDispatcher` routes parsed change events to table-specific handlers. `CustomerChangeHandler` owns customer semantics and delegates persistence to `MySqlReplicaCustomerStore`.
+`Cdc.Extensions` supplies reusable contracts, parsing, topic routing and Kafka consumption. `ChangeDispatcher` selects a registered topic subscription and creates a scope per processing attempt; the subscription parses the event into its registered model and resolves the scoped handler. `CustomerChangeHandler` owns customer semantics and delegates persistence to `MySqlReplicaCustomerStore`.
 
 ### Keep Infrastructure Behind Interfaces
 
@@ -98,12 +98,12 @@ The flow also behaves like a pipe-and-filter system: each stage accepts a clear 
 | Connector init | Registers or updates the Debezium connector during Compose startup. | `deploy/docker-compose.yml`, `deploy/scripts/register-connectors.ps1` |
 | Replica bootstrap | Reconciles the replica table from current source rows before the consumer starts, giving the demo a consistent baseline even when old offsets exist. | `deploy/docker-compose.yml` |
 | Worker host | Starts the .NET worker and registers dependencies. | `consumer/Program.cs` |
-| Consumer worker | Runs the hosted background service. | `consumer/Infrastructure/Kafka/CdcConsumerWorker.cs` |
-| Kafka consumer loop | Consumes messages, retries failures, commits offsets, and publishes DLQ messages. | `consumer/Infrastructure/Kafka/KafkaConsumerLoop.cs` |
-| Envelope parser | Converts raw Debezium JSON into typed `ChangeEvent<T>` values. | `consumer/Application/DebeziumEnvelopeParser.cs` |
-| Change dispatcher | Routes parsed changes to the correct handler. | `consumer/Application/ChangeDispatcher.cs` |
+| Consumer worker | Runs the hosted background service. | `src/Cdc.Extensions/Infrastructure/Kafka/CdcConsumerWorker.cs` |
+| Kafka consumer loop | Consumes messages, retries failures, commits offsets, and publishes DLQ messages. | `src/Cdc.Extensions/Infrastructure/Kafka/KafkaConsumerLoop.cs` |
+| Envelope parser | Converts raw Debezium JSON into typed `ChangeEvent<T>` values. | `src/Cdc.Extensions/Application/DebeziumEnvelopeParser.cs` |
+| Change dispatcher | Routes parsed changes to the correct handler. | `src/Cdc.Extensions/Application/ChangeDispatcher.cs` |
 | Customer handler | Applies customer create, update, delete, snapshot, and truncate events. | `consumer/Application/Customers/CustomerChangeHandler.cs` |
 | Replica store | Executes MySQL upsert, delete, and truncate operations for the replica table. | `consumer/Infrastructure/ReplicaDb/MySqlReplicaCustomerStore.cs` |
-| Dead-letter producer | Publishes failed messages and error metadata to `cdc.dead-letter`. | `consumer/Infrastructure/Kafka/KafkaDeadLetterProducer.cs` |
+| Dead-letter producer | Publishes failed messages and error metadata to `cdc.dead-letter`. | `src/Cdc.Extensions/Infrastructure/Kafka/KafkaDeadLetterProducer.cs` |
 | Demo web app | Lets users trigger source changes, publish poison events, inspect Kafka messages, compare source and replica rows, and map runtime stages to repo files. | `demo/DemoWeb/*` |
 | Tests | Verifies parser behavior for Debezium event shapes. | `tests/CdcConsumer.Tests/DebeziumEnvelopeParserTests.cs` |

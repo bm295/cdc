@@ -1,4 +1,4 @@
-namespace CdcConsumer;
+namespace Cdc.Extensions;
 
 public sealed record ConsumedMessage(
     string Topic,

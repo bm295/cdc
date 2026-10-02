@@ -1,3 +1,5 @@
+using Cdc.Extensions;
+using Cdc.Extensions.Application;
 using CdcConsumer.Infrastructure.ReplicaDb;
 using Microsoft.Extensions.Logging;
 

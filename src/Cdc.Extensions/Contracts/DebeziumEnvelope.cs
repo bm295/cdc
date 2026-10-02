@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace CdcConsumer;
+namespace Cdc.Extensions;
 
 public sealed record DebeziumEnvelope<T>
 {

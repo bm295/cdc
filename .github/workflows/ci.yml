@@ -1,4 +1,4 @@
-name: Test and Coverage
+name: CI
 
 on:
   push:
@@ -7,11 +7,20 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    name: Test
+    name: Build, Test and Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -29,6 +38,7 @@ jobs:
         run: dotnet build cdc.sln --configuration Release --no-restore
 
       - name: Test with coverage
+        id: tests
         run: >
           dotnet test cdc.sln
           --configuration Release
@@ -38,9 +48,11 @@ jobs:
           --collect:"XPlat Code Coverage"
 
       - name: Install coverage report tool
-        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.4.18
 
       - name: Generate coverage summary
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
         run: >
           reportgenerator
           -reports:"TestResults/**/coverage.cobertura.xml"
@@ -48,15 +60,12 @@ jobs:
           -reporttypes:"TextSummary;MarkdownSummaryGithub"
 
       - name: Show coverage in output
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
         run: |
+          if [[ ! -f CoverageReport/Summary.txt || ! -f CoverageReport/SummaryGithub.md ]]; then
+            echo "::error::Coverage summary was not generated. Check the test and report steps."
+            echo "### Code coverage unavailable" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
           cat CoverageReport/Summary.txt
           cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload test results and coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-and-coverage
-          path: |
-            TestResults
-            CoverageReport

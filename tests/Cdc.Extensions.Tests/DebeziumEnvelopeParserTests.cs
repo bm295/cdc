@@ -1,8 +1,9 @@
-using CdcConsumer;
-using CdcConsumer.Application;
+using Cdc.Extensions;
+
+using Cdc.Extensions.Application;
 using Xunit;
 
-namespace CdcConsumer.Tests;
+namespace Cdc.Extensions.Tests;
 
 public sealed class DebeziumEnvelopeParserTests
 {
@@ -11,7 +12,7 @@ public sealed class DebeziumEnvelopeParserTests
     [Fact]
     public void Parse_CreateEvent_ReturnsCreateChange()
     {
-        var change = _parser.Parse<CustomerRecord>(
+        var change = _parser.Parse<TestRecord>(
             Message("""
             {
               "before": null,
@@ -42,7 +43,7 @@ public sealed class DebeziumEnvelopeParserTests
     [Fact]
     public void Parse_UpdateEvent_ReturnsBeforeAndAfter()
     {
-        var change = _parser.Parse<CustomerRecord>(
+        var change = _parser.Parse<TestRecord>(
             Message("""
             {
               "before": {
@@ -74,7 +75,7 @@ public sealed class DebeziumEnvelopeParserTests
     [Fact]
     public void Parse_KafkaConnectJsonEnvelope_ReturnsPayloadChange()
     {
-        var change = _parser.Parse<CustomerRecord>(
+        var change = _parser.Parse<TestRecord>(
             Message("""
             {
               "schema": {
@@ -107,7 +108,7 @@ public sealed class DebeziumEnvelopeParserTests
     [Fact]
     public void Parse_DeleteEvent_ReturnsBeforePayload()
     {
-        var change = _parser.Parse<CustomerRecord>(
+        var change = _parser.Parse<TestRecord>(
             Message("""
             {
               "before": {
@@ -134,7 +135,7 @@ public sealed class DebeziumEnvelopeParserTests
     [Fact]
     public void Parse_TruncateEvent_ReturnsTruncateChange()
     {
-        var change = _parser.Parse<CustomerRecord>(
+        var change = _parser.Parse<TestRecord>(
             Message("""
             {
               "before": null,
@@ -157,7 +158,7 @@ public sealed class DebeziumEnvelopeParserTests
     [Fact]
     public void Parse_Tombstone_ReturnsTombstoneChange()
     {
-        var change = _parser.Parse<CustomerRecord>(
+        var change = _parser.Parse<TestRecord>(
             new ConsumedMessage(
                 "mysql-server-1.inventory.customers",
                 0,
@@ -174,7 +175,7 @@ public sealed class DebeziumEnvelopeParserTests
     public void Parse_InvalidJson_ThrowsInvalidDataException()
     {
         Assert.Throws<InvalidDataException>(() =>
-            _parser.Parse<CustomerRecord>(Message("{not-json}")));
+            _parser.Parse<TestRecord>(Message("{not-json}")));
     }
 
     private static ConsumedMessage Message(string value)

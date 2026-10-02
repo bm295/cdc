@@ -1,5 +1,12 @@
 # Debezium CDC Demo (C#)
 
+## Reusable CDC library
+
+`src/Cdc.Extensions` contains a packable .NET 8 library with typed topic subscriptions,
+scoped handlers, Debezium JSON parsing, retries, manual offset commits and dead letters.
+The `consumer` app references this library and supplies the customer model and MySQL replica handler.
+See [Cdc.Extensions usage and packaging](src/Cdc.Extensions/README.md).
+
 This repository demonstrates a local Change Data Capture pipeline:
 
 ```text

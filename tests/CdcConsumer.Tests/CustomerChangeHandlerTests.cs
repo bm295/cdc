@@ -1,3 +1,4 @@
+using Cdc.Extensions;
 using CdcConsumer.Application.Customers;
 using CdcConsumer.Infrastructure.ReplicaDb;
 using Microsoft.Extensions.Logging.Abstractions;

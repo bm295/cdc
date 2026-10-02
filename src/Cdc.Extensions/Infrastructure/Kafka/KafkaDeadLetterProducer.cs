@@ -1,9 +1,9 @@
 using System.Text.Json;
-using CdcConsumer.Options;
+using Cdc.Extensions.Options;
 using Confluent.Kafka;
 using Microsoft.Extensions.Options;
 
-namespace CdcConsumer.Infrastructure.Kafka;
+namespace Cdc.Extensions.Infrastructure.Kafka;
 
 public sealed class KafkaDeadLetterProducer : IDeadLetterProducer, IDisposable
 {

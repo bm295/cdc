@@ -1,14 +1,12 @@
-namespace CdcConsumer.Options;
+namespace Cdc.Extensions.Options;
 
 public sealed class KafkaOptions
 {
     public const string SectionName = "Kafka";
 
-    public string BootstrapServers { get; set; } = "kafka:29092";
+    public string BootstrapServers { get; set; } = "";
 
-    public string Topic { get; set; } = "mysql-server-1.inventory.customers";
-
-    public string GroupId { get; set; } = "cdc-consumer-group";
+    public string GroupId { get; set; } = "";
 
     public string DeadLetterTopic { get; set; } = "cdc.dead-letter";
 
@@ -18,24 +16,11 @@ public sealed class KafkaOptions
 
     public bool EnableDeadLetterTopic { get; set; } = true;
 
-    public void ApplyLegacyEnvironmentVariables()
-    {
-        BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? BootstrapServers;
-        Topic = Environment.GetEnvironmentVariable("TOPIC") ?? Topic;
-        GroupId = Environment.GetEnvironmentVariable("GROUP_ID") ?? GroupId;
-        DeadLetterTopic = Environment.GetEnvironmentVariable("DLQ_TOPIC") ?? DeadLetterTopic;
-    }
-
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(BootstrapServers))
         {
             throw new InvalidOperationException("Kafka:BootstrapServers is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(Topic))
-        {
-            throw new InvalidOperationException("Kafka:Topic is required.");
         }
 
         if (string.IsNullOrWhiteSpace(GroupId))

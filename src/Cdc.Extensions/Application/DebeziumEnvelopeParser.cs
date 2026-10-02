@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CdcConsumer.Application;
+namespace Cdc.Extensions.Application;
 
 public sealed class DebeziumEnvelopeParser : IDebeziumEnvelopeParser
 {

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace CdcConsumer.Infrastructure.Kafka;
+namespace Cdc.Extensions.Infrastructure.Kafka;
 
 public sealed class CdcConsumerWorker(
     IKafkaConsumerLoop consumerLoop,
@@ -10,6 +10,6 @@ public sealed class CdcConsumerWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("CDC consumer worker starting.");
-        await consumerLoop.RunAsync(stoppingToken);
+        await Task.Run(() => consumerLoop.RunAsync(stoppingToken), stoppingToken);
     }
 }

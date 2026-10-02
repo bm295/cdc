@@ -138,7 +138,8 @@ services:
 
   consumer:
     build:
-      context: ../consumer
+      context: ..
+      dockerfile: consumer/Dockerfile
     container_name: consumer
     depends_on:
       kafka:

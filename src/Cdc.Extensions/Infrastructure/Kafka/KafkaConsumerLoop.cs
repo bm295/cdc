@@ -1,16 +1,17 @@
-using CdcConsumer.Application;
-using CdcConsumer.Options;
+using Cdc.Extensions.Application;
+using Cdc.Extensions.Options;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace CdcConsumer.Infrastructure.Kafka;
+namespace Cdc.Extensions.Infrastructure.Kafka;
 
 public sealed class KafkaConsumerLoop(
     IOptions<KafkaOptions> options,
     IKafkaConsumerFactory consumerFactory,
     IChangeDispatcher dispatcher,
     IDeadLetterProducer deadLetterProducer,
+    IEnumerable<ChangeSubscription> subscriptions,
     ILogger<KafkaConsumerLoop> logger) : IKafkaConsumerLoop
 {
     private readonly KafkaOptions _options = options.Value;
@@ -22,11 +23,11 @@ public sealed class KafkaConsumerLoop(
             try
             {
                 using var consumer = consumerFactory.Create(_options);
-                consumer.Subscribe(_options.Topic);
+                consumer.Subscribe(subscriptions.Select(x => x.Topic));
 
                 logger.LogInformation(
                     "Listening for CDC events on {Topic} with consumer group {GroupId}.",
-                    _options.Topic,
+                    string.Join(", ", subscriptions.Select(x => x.Topic)),
                     _options.GroupId);
 
                 while (!cancellationToken.IsCancellationRequested)
@@ -67,8 +68,11 @@ public sealed class KafkaConsumerLoop(
             try
             {
                 await dispatcher.DispatchAsync(ToConsumedMessage(result), cancellationToken);
-                CommitProcessedMessage(consumer, result);
-                return;
+                break;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex) when (attempt < _options.MaxProcessingAttempts)
             {
@@ -86,10 +90,12 @@ public sealed class KafkaConsumerLoop(
             catch (Exception ex)
             {
                 await PublishDeadLetterAsync(result, ex, cancellationToken);
-                CommitProcessedMessage(consumer, result);
-                return;
+                break;
             }
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        CommitProcessedMessage(consumer, result);
     }
 
     private async Task PublishDeadLetterAsync(
@@ -97,6 +103,7 @@ public sealed class KafkaConsumerLoop(
         Exception exception,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!_options.EnableDeadLetterTopic)
         {
             throw new InvalidOperationException(

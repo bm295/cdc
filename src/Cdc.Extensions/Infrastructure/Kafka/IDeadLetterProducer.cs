@@ -1,4 +1,4 @@
-namespace CdcConsumer.Infrastructure.Kafka;
+namespace Cdc.Extensions.Infrastructure.Kafka;
 
 public interface IDeadLetterProducer
 {

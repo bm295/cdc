@@ -1,7 +1,8 @@
-using CdcConsumer.Options;
+using Cdc.Extensions;
+using Cdc.Extensions.Options;
 using Xunit;
 
-namespace CdcConsumer.Tests;
+namespace Cdc.Extensions.Tests;
 
 public sealed class KafkaOptionsTests
 {
@@ -59,7 +60,6 @@ public sealed class KafkaOptionsTests
         return new KafkaOptions
         {
             BootstrapServers = "kafka:29092",
-            Topic = "mysql-server-1.inventory.customers",
             GroupId = "cdc-consumer-group",
             DeadLetterTopic = "cdc.dead-letter",
             RetryDelaySeconds = 3,

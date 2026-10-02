@@ -1,7 +1,7 @@
-using CdcConsumer.Options;
+using Cdc.Extensions.Options;
 using Confluent.Kafka;
 
-namespace CdcConsumer.Infrastructure.Kafka;
+namespace Cdc.Extensions.Infrastructure.Kafka;
 
 public interface IKafkaConsumerFactory
 {

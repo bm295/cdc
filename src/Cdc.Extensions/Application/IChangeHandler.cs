@@ -1,4 +1,4 @@
-namespace CdcConsumer.Application;
+namespace Cdc.Extensions.Application;
 
 public interface IChangeHandler<T>
 {
