@@ -69,3 +69,22 @@ jobs:
           fi
           cat CoverageReport/Summary.txt
           cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+  document-qa:
+    name: Document QA tests and evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: API, retrieval and evaluation tests
+        run: python -m unittest discover -s document_qa/tests -v
+      - name: Evaluation quality gate
+        run: python -m document_qa.evaluate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: document-qa-evaluation
+          path: artifacts/document-qa-evaluation.json

@@ -96,3 +96,18 @@ dotnet test cdc.sln
 ```bash
 docker compose -f deploy/docker-compose.yml down -v
 ```
+
+## Document QA with evaluation
+
+A runnable local document question-answering project is available in
+[`document_qa`](document_qa). It includes a web UI, HTTP API, persistent SQLite
+storage, overlapping chunks, BM25 retrieval, exact source citations, abstention,
+and an offline evaluation quality gate in CI. This version uses extractive
+answers and requires no model API key. See [setup, API and evaluation guide](docs/document-qa.md).
+
+```bash
+python -m document_qa.ingest README.md docs/cdc-flow.md docs/architecture.md docs/demo-web.md
+python -m document_qa.server
+# Open http://127.0.0.1:8090
+python -m document_qa.evaluate
+```

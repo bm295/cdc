@@ -1,0 +1,16 @@
+{
+  "documents": [
+    {"id":"flow","title":"CDC flow","path":"docs/cdc-flow.md"},
+    {"id":"architecture","title":"Architecture","path":"docs/architecture.md"},
+    {"id":"demo","title":"Demo web","path":"docs/demo-web.md"}
+  ],
+  "thresholds": {"recall_at_k":0.65,"mrr":0.65,"extractive_integrity":1.0,"abstention_accuracy":0.8},
+  "cases": [
+    {"id":"retry","question":"retry MaxRetryAttempts dead-letter offset","relevant_documents":["flow"],"reference_answer":"Retries are exhausted before the dead-letter message is published and the offset is committed.","should_abstain":false},
+    {"id":"dashboard","question":"demo web dashboard source replica connector status","relevant_documents":["demo"],"reference_answer":"The dashboard shows source rows, replica rows and connector status.","should_abstain":false},
+    {"id":"architecture","question":"architecture characteristics modular monolith","relevant_documents":["architecture"],"reference_answer":"The architecture separates reusable CDC infrastructure from application-specific handlers.","should_abstain":false},
+    {"id":"snapshot","question":"Debezium snapshot binlog MySQL Kafka","relevant_documents":["flow","architecture"],"reference_answer":"Debezium captures MySQL changes and publishes them to Kafka.","should_abstain":false},
+    {"id":"unknown","question":"astronaut interplanetary xenobiology","relevant_documents":[],"reference_answer":"","should_abstain":true},
+    {"id":"unknown-vietnamese","question":"khủng long tuyệt chủng thiên thạch","relevant_documents":[],"reference_answer":"","should_abstain":true}
+  ]
+}
