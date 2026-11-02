@@ -107,3 +107,10 @@ The flow also behaves like a pipe-and-filter system: each stage accepts a clear 
 | Dead-letter producer | Publishes failed messages and error metadata to `cdc.dead-letter`. | `src/Cdc.Extensions/Infrastructure/Kafka/KafkaDeadLetterProducer.cs` |
 | Demo web app | Lets users trigger source changes, publish poison events, inspect Kafka messages, compare source and replica rows, and map runtime stages to repo files. | `demo/DemoWeb/*` |
 | Tests | Verifies parser behavior for Debezium event shapes. | `tests/CdcConsumer.Tests/DebeziumEnvelopeParserTests.cs` |
+
+## Decision records and runtime sequences
+
+See [Architecture decision records](adr/README.md) and
+[sequence diagrams](sequence-diagrams.md) for CDC delivery, scoped dispatch,
+local document QA, tool contracts and action security, including failure paths
+and current limitations.
