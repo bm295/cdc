@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CDC Flow Playground</title>
+  <title>CustomerSync</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="app-header">
     <div>
-      <h1>CDC Flow Playground</h1>
+      <h1>CustomerSync</h1>
       <p>MySQL -> Debezium -> Kafka -> C# worker -> replica</p>
+      <p><a href="http://127.0.0.1:8090/" target="_blank" rel="noopener noreferrer">Open document runbook QA</a> (start the QA service separately)</p>
     </div>
     <div class="status-strip" aria-live="polite">
       <span id="connectorStatus" class="status-chip muted">Connect: loading</span>
@@ -21,6 +22,11 @@
   </header>
 
   <main class="dashboard">
+    <section class="panel table-panel" aria-labelledby="reconciliationTitle">
+      <div class="panel-heading"><h2 id="reconciliationTitle">Customer reconciliation</h2></div>
+      <p class="subtle-text">Source and replica are read separately. Differences may be transient while CDC catches up.</p>
+      <div id="reconciliation" aria-live="polite">Loading reconciliation…</div>
+    </section>
     <section class="panel action-panel" aria-labelledby="actionsTitle">
       <div class="panel-heading">
         <h2 id="actionsTitle">Actions</h2>

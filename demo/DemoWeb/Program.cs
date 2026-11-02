@@ -44,6 +44,13 @@ app.UseStaticFiles();
 
 var api = app.MapGroup("/api/demo");
 
+api.MapGet("/reconciliation", async (MySqlDemoStore store, CancellationToken cancellationToken) =>
+{
+    var source = await store.GetSourceCustomersAsync(cancellationToken);
+    var replica = await store.GetReplicaCustomersAsync(cancellationToken);
+    return Results.Ok(CustomerReconciliation.Compare(source, replica));
+});
+
 api.MapGet("/snapshot", async (CdcDemoDashboard dashboard, CancellationToken cancellationToken) =>
 {
     var snapshot = await dashboard.GetSnapshotAsync(cancellationToken);

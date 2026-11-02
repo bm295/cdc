@@ -41,7 +41,7 @@ def handler_for(kb, identities=None):
                 return self.tool_error(ToolError('unauthenticated', 'Bearer credential required'))
 
             if self.path == '/':
-                self.send(200, Path(__file__).with_name('index.html').read_text(), 'text/html; charset=utf-8')
+                self.send(200, Path(__file__).with_name('index.html').read_text(encoding='utf-8'), 'text/html; charset=utf-8')
             elif self.path == '/health':
                 self.send(200, {'status': 'ok'})
             elif self.path == '/api/tools':

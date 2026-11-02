@@ -187,10 +187,26 @@ async function refreshSnapshot() {
     state.snapshot = await response.json();
     ingestMessages(state.snapshot);
     render();
+    await refreshReconciliation();
     setRefreshState('Live', state.snapshot.warnings.length ? 'warn' : 'ok');
   } catch (error) {
     setRefreshState('Offline', 'bad');
     elements.actionResult.innerHTML = `<strong>Snapshot failed.</strong><br>${escapeHtml(error.message)}`;
+  }
+}
+
+async function refreshReconciliation() {
+  const target = document.getElementById('reconciliation');
+  try {
+    const response = await fetch('/api/demo/reconciliation');
+    if (!response.ok) throw new Error('Could not read both customer tables');
+    const result = await response.json();
+    const summary = `${result.matchingCount} matching · ${result.differences.length} differences · source ${result.sourceCount} · replica ${result.replicaCount}`;
+    target.innerHTML = `<p>${escapeHtml(summary)}</p>` + (result.differences.length
+      ? `<ul>${result.differences.map(item => `<li>Customer ${item.id}: ${escapeHtml(item.kind)}</li>`).join('')}</ul>`
+      : '<p>No differences observed.</p>');
+  } catch (error) {
+    target.textContent = `Reconciliation unavailable: ${error.message}`;
   }
 }
 

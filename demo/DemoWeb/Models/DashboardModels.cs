@@ -42,6 +42,11 @@ public sealed record DashboardSnapshot(
     IReadOnlyList<TopicMessageDto> DeadLetterMessages,
     IReadOnlyList<string> Warnings);
 
+public sealed record CustomerDifference(int Id, string Kind, CustomerRow? Source, CustomerRow? Replica);
+
+public sealed record ReconciliationResult(DateTimeOffset CheckedAt, int SourceCount, int ReplicaCount,
+    int MatchingCount, IReadOnlyList<CustomerDifference> Differences);
+
 public sealed record DemoActionRequest(
     int? CustomerId,
     string? FirstName,

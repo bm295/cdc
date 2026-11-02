@@ -1,5 +1,21 @@
 # Demo Web App
 
+## CustomerSync capstone: reconciliation
+
+The dashboard compares customer IDs and all displayed fields in the source and replica.
+It reports matching rows and identifies rows missing from the replica, extra in the
+replica, or different. `GET /api/demo/reconciliation` returns the detailed comparison.
+If either database read fails, the endpoint fails instead of reporting a clean result.
+The reads are separate, so in-flight CDC changes may produce temporary differences;
+refresh after the pipeline catches up. The recent Kafka and DLQ lists are samples,
+not total error counts or end-to-end latency measurements.
+
+The dashboard links to the separate document QA service. Start it using the
+authenticated setup in [document QA](document-qa.md). This demo dashboard and its
+existing mutation endpoints have no authentication or authorization; use only with
+isolated demo data. Reconciliation is read-only: safe authorized repair, actual
+end-to-end latency metrics, and production access control remain to be implemented.
+
 The demo web app is an interactive dashboard for observing the CDC pipeline from the browser.
 
 ```text

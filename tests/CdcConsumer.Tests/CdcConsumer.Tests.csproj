@@ -22,5 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\consumer\CdcConsumer.csproj" />
+    <ProjectReference Include="..\..\demo\DemoWeb\DemoWeb.csproj" />
   </ItemGroup>
 </Project>
