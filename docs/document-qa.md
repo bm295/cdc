@@ -130,13 +130,61 @@ curl -X POST http://127.0.0.1:8090/api/tools/invoke \
   -d '{"name":"search_documents","arguments":{"question":"Kafka retries","top_k":2}}'
 ```
 
-Python: `ToolRegistry(kb).invoke('search_documents', {'question': 'Kafka'})`.
+Python: `ToolRegistry(kb).invoke('search_documents', {'question': 'Kafka'}, context)` với context tin cậy.
 Kết quả trả trực tiếp theo output_schema. Lỗi tool qua HTTP có dạng
 `{"error":{"code":"invalid_arguments","message":"..."}}`:
 `unknown_tool`/`invalid_arguments` trả 400, `tool_execution_failed` trả 500,
 không lộ exception nội bộ. Lỗi JSON/body và route giữ định dạng lỗi HTTP cũ.
 `validate` chỉ triển khai các keyword được dùng trong registry, không phải
 validator JSON Schema tổng quát; khi thêm keyword mới phải mở rộng validator
-hoặc dùng thư viện đầy đủ. `mutates` là metadata cho caller lựa chọn policy,
-không thay thế xác thực hay phân quyền. Đây là tool interface/dispatcher,
+hoặc dùng thư viện đầy đủ. `mutates` mô tả tác động; policy thực thi quyền và xác nhận như mục bảo vệ bên dưới. Đây là tool interface/dispatcher,
 chưa phải agent loop, MCP server hay tích hợp model tool calling.
+
+## Authorization, confirmation và guardrails
+
+API hiện yêu cầu `Authorization: Bearer <token>` cho các hành động tài liệu.
+Cấu hình danh tính ở phía server, không nhận subject/scope do request tự khai:
+
+```bash
+# Tạo token bằng python -c 'import secrets; print(secrets.token_urlsafe(32))'
+# Thay placeholder bên dưới bằng token vừa tạo; không commit token vào git.
+export DOCUMENT_QA_IDENTITIES='[{"token":"REPLACE_WITH_RANDOM_TOKEN_AT_LEAST_32_CHARS","subject":"operator","scopes":["documents:read","documents:write","documents:delete"],"document_ids":null}]'
+python -m document_qa.server
+```
+
+`document_ids:null` cho phép mọi tài liệu; danh sách cụ thể chỉ cho phép các id đó;
+thiếu trường này mặc định không được truy cập tài liệu nào. Quyền đọc được áp dụng
+trước chấm điểm retrieval, bao gồm list/search/answer và citations. Registry mặc
+định từ chối nếu thiếu `ExecutionContext`; context chỉ được tạo bởi ứng dụng tin cậy.
+CLI ingest là công cụ quản trị offline có quyền truy cập DB, không qua HTTP policy.
+
+Luồng ghi cho cả tạo mới, ghi đè và xóa:
+
+1. Gọi `POST /api/tools/prepare` với `{"name":"delete_document","arguments":{"id":"runbook"}}` cùng bearer token.
+2. Hiển thị hành động và tham số cho người dùng, chờ xác nhận rõ ràng. Hủy thì không gọi invoke.
+3. Gọi `/api/tools/invoke` với đúng name/arguments và header
+   `X-Confirmation-Token` lấy từ bước chuẩn bị. Endpoint POST/DELETE cũ cũng yêu cầu header này.
+
+Token ngẫu nhiên, hết hạn sau 120 giây, gắn với subject/tool/hash tham số,
+chỉ dùng một lần; kiểm tra lại quyền khi thực thi. UI lưu bearer token trong
+bộ nhớ và dùng hộp thoại xác nhận trước khi lưu tài liệu. Endpoint prepare không
+tự chứng minh có người thật đồng ý: ứng dụng agent phải giữ quyền approve ở UI
+người dùng, không tự đưa token trở lại model để model tự phê duyệt.
+
+Policy chung giới hạn 60 request tool/phút/subject (bao gồm prepare), 1.000 tài
+liệu và tổng 10 triệu ký tự nội dung; tối đa 1.000 confirmation đang chờ.
+HTTP giới hạn body như trước và có socket timeout 10 giây. SQLite `tool_audit`
+lưu thời gian, subject, tên tool, kết quả cho prepare/invoke; không lưu nội dung,
+arguments, bearer hay confirmation token. Lỗi xác thực HTTP trước dispatcher không
+được ghi vào bảng audit. Cần chính sách lưu trữ/rotation audit khi vận hành dài hạn.
+
+Mã HTTP: 401 thiếu/sai credential; 403 thiếu quyền; 409 thiếu/sai confirmation
+hoặc vượt quota; 429 vượt tần suất/capacity; 400 sai input; 500 thực thi thất bại.
+Danh sách schema thêm `required_scope` và `requires_confirmation`.
+
+Giới hạn triển khai: dành cho một tiến trình local. Rate counters và confirmation
+ở RAM, restart làm token mất hiệu lực và reset counters. Dùng chung Policy trong
+một server; nhiều worker cần store và khóa phân tán. Không có hard timeout hủy
+Python tool đang chạy, identity provider ngoài, hay cơ chế rollback tự động khi
+output validation lỗi sau mutation. Schema validation không thay thế authorization.
+Các hướng dẫn API không có bearer ở các phần trước cần thêm header theo mục này.

@@ -43,22 +43,23 @@ class KnowledgeBase:
             self.db.executemany('INSERT INTO chunks VALUES(?,?,?,?)', chunks)
         return {'id': document_id, 'chunks': len(chunks)}
 
-    def documents(self):
+    def documents(self, allowed_ids=None):
         with self.lock:
-            return [dict(zip(('id', 'title'), row)) for row in self.db.execute('SELECT id,title FROM documents ORDER BY id')]
+            return [dict(zip(('id', 'title'), row)) for row in self.db.execute('SELECT id,title FROM documents ORDER BY id') if allowed_ids is None or row[0] in allowed_ids]
 
     def delete(self, document_id):
         with self.lock, self.db:
             self.db.execute('DELETE FROM chunks WHERE document_id=?', (document_id,))
             return self.db.execute('DELETE FROM documents WHERE id=?', (document_id,)).rowcount > 0
 
-    def search(self, question, top_k=3):
+    def search(self, question, top_k=3, allowed_ids=None):
         if not isinstance(question, str) or not question.strip() or len(question) > 4000:
             raise ValueError('Question must contain 1..4000 characters')
         if type(top_k) is not int or not 1 <= top_k <= 20:
             raise ValueError('top_k must be an integer from 1 to 20')
         with self.lock:
             rows = self.db.execute('SELECT c.id,c.document_id,d.title,c.position,c.text FROM chunks c JOIN documents d ON d.id=c.document_id ORDER BY c.id').fetchall()
+        rows = [row for row in rows if allowed_ids is None or row[1] in allowed_ids]
         if not rows:
             return []
         counts = [Counter(tokens(row[4])) for row in rows]
@@ -74,9 +75,9 @@ class KnowledgeBase:
                 results.append(dict(zip(('chunk_id', 'document_id', 'title', 'word_offset', 'quote'), row), score=score))
         return sorted(results, key=lambda r: (-r['score'], r['chunk_id']))[:top_k]
 
-    def ask(self, question, top_k=3):
+    def ask(self, question, top_k=3, allowed_ids=None):
         start = time.perf_counter()
-        hits = self.search(question, top_k)
+        hits = self.search(question, top_k, allowed_ids)
         return {'question': question, 'mode': 'extractive', 'abstained': not hits,
                 'answer': '\n\n'.join(f"[{i}] {h['quote']}" for i, h in enumerate(hits, 1)) if hits else 'Không tìm thấy bằng chứng trong tài liệu.',
                 'citations': [dict(h, label=i) for i, h in enumerate(hits, 1)],

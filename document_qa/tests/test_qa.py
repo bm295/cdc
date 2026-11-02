@@ -8,6 +8,7 @@ from http.server import ThreadingHTTPServer
 from document_qa.core import KnowledgeBase
 from document_qa.evaluate import evaluate, score
 from document_qa.server import handler_for
+from document_qa.security import ExecutionContext
 
 
 class RetrievalTests(unittest.TestCase):
@@ -82,7 +83,7 @@ class RetrievalTests(unittest.TestCase):
 class ApiTests(unittest.TestCase):
     def setUp(self):
         self.kb = KnowledgeBase(':memory:')
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(self.kb))
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(self.kb, {'test-token': ExecutionContext('test', frozenset({'documents:read','documents:write','documents:delete'}), None)}))
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
@@ -94,7 +95,14 @@ class ApiTests(unittest.TestCase):
 
     def request(self, method, path, body=None):
         conn = http.client.HTTPConnection('127.0.0.1', self.server.server_port)
-        conn.request(method, path, json.dumps(body) if body is not None else None)
+        headers = {'Authorization': 'Bearer test-token'}
+        if (path == '/api/documents' and method == 'POST' and isinstance(body, dict) and set(body) == {'id','title','text'}) or (method == 'DELETE' and path.startswith('/api/documents/')):
+            name = 'upsert_document' if method == 'POST' else 'delete_document'
+            arguments = body if method == 'POST' else {'id': path[len('/api/documents/'): ]}
+            status, pending = self.request('POST', '/api/tools/prepare', {'name': name, 'arguments': arguments})
+            if status == 200:
+                headers['X-Confirmation-Token'] = json.loads(pending)['confirmation_token']
+        conn.request(method, path, json.dumps(body) if body is not None else None, headers)
         response = conn.getresponse()
         data = response.read()
         conn.close()

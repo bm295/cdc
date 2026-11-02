@@ -4,12 +4,22 @@ from unittest.mock import Mock
 from document_qa.core import KnowledgeBase
 from document_qa.tools import ToolRegistry, ToolError, validate
 from document_qa.tests import test_qa
+from document_qa.security import ExecutionContext
 
 
 class ToolTests(unittest.TestCase):
     def setUp(self):
         self.kb = KnowledgeBase(':memory:')
-        self.tools = ToolRegistry(self.kb)
+        registry = ToolRegistry(self.kb)
+        context = ExecutionContext('test', frozenset({'documents:read','documents:write','documents:delete'}), None)
+        class TrustedTestClient:
+            definitions = registry.definitions
+            def invoke(self, name, args):
+                token = None
+                if name in ('upsert_document', 'delete_document'):
+                    token = registry.prepare(name, args, context)['confirmation_token']
+                return registry.invoke(name, args, context, token)
+        self.tools = TrustedTestClient()
         self.addCleanup(self.kb.db.close)
 
     def test_contracts_and_lifecycle(self):
@@ -42,10 +52,10 @@ class ToolTests(unittest.TestCase):
 
     def test_output_and_execution_errors_are_sanitized(self):
         for method in (Mock(return_value=[{'invalid': True}]), Mock(side_effect=RuntimeError('secret'))):
-            kb = Mock()
+            kb = self.kb
             kb.search = method
             with self.assertRaises(ToolError) as ctx:
-                ToolRegistry(kb).invoke('search_documents', {'question': 'a'})
+                ToolRegistry(kb).invoke('search_documents', {'question': 'a'}, ExecutionContext('test', frozenset({'documents:read'}), None))
             self.assertEqual(ctx.exception.code, 'tool_execution_failed')
             self.assertNotIn('secret', ctx.exception.message)
 

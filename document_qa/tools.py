@@ -73,7 +73,10 @@ def validate(value, schema, path='$'):
 
 
 class ToolRegistry:
-    def __init__(self, kb):
+    def __init__(self, kb, policy=None):
+        from .security import Policy
+        self.kb = kb
+        self.policy = policy if policy is not None else Policy(kb)
         self._tools = {
             'search_documents': ('Search indexed passages; scores are BM25, not confidence.', QUERY, array(HIT), False,
                                  lambda a: kb.search(a['question'], a.get('top_k', 3))),
@@ -91,22 +94,57 @@ class ToolRegistry:
 
     def definitions(self):
         return copy.deepcopy([{'name': name, 'description': spec[0], 'version': '1.0',
-                               'mutates': spec[3], 'input_schema': dict(spec[1], **{'$schema': 'https://json-schema.org/draft/2020-12/schema'}),
+                               'mutates': spec[3], 'requires_confirmation': spec[3],
+                               'required_scope': {'upsert_document': 'documents:write', 'delete_document': 'documents:delete'}.get(name, 'documents:read'),
+                               'input_schema': dict(spec[1], **{'$schema': 'https://json-schema.org/draft/2020-12/schema'}),
                                'output_schema': dict(spec[2], **{'$schema': 'https://json-schema.org/draft/2020-12/schema'})}
                               for name, spec in self._tools.items()])
 
-    def invoke(self, name, arguments):
+    def _spec(self, name, arguments):
         if not isinstance(name, str) or name not in self._tools:
             raise ToolError('unknown_tool', 'Unknown tool name')
-        _, input_schema, output_schema, _, execute = self._tools[name]
+        spec = self._tools[name]
         try:
-            validate(arguments, input_schema)
+            validate(arguments, spec[1])
         except ValueError as exc:
             raise ToolError('invalid_arguments', str(exc)) from exc
-        try:
-            result = execute(arguments)
-            validate(result, output_schema)
-        except Exception as exc:
-            # Do not expose document content, SQL, or internal exception messages.
-            raise ToolError('tool_execution_failed', 'Tool failed to produce a valid result') from exc
-        return result
+        return spec
+
+    def prepare(self, name, arguments, context=None):
+        with self.policy.lock, self.kb.lock:
+            try:
+                self._spec(name, arguments)
+                result = self.policy.prepare(context, name, arguments)
+                self.policy.audit(context, name, 'prepared')
+                return result
+            except ToolError as exc:
+                self.policy.audit(context, name, exc.code)
+                raise
+
+    def invoke(self, name, arguments, context=None, confirmation_token=None):
+        # Serialize policy checks and writes, including token consumption and quotas.
+        with self.policy.lock, self.kb.lock:
+            try:
+                spec = self._spec(name, arguments)
+                self.policy.authorize(context, name, arguments)
+                self.policy.rate(context)
+                if spec[3]:
+                    if name == 'upsert_document':
+                        self.policy.quota(arguments)
+                    self.policy.consume(context, name, arguments, confirmation_token)
+                if name == 'list_documents':
+                    result = self.kb.documents(context.document_ids)
+                elif name in ('search_documents', 'answer_question'):
+                    method = self.kb.search if name == 'search_documents' else self.kb.ask
+                    result = method(arguments['question'], arguments.get('top_k', 3), context.document_ids)
+                else:
+                    result = spec[4](arguments)
+                validate(result, spec[2])
+                self.policy.audit(context, name, 'succeeded')
+                return result
+            except ToolError as exc:
+                self.policy.audit(context, name, exc.code)
+                raise
+            except Exception as exc:
+                self.policy.audit(context, name, 'tool_execution_failed')
+                raise ToolError('tool_execution_failed', 'Tool failed to produce a valid result') from exc
