@@ -9,10 +9,13 @@ from .core import KnowledgeBase
 from .tools import ToolRegistry, ToolError
 from .security import ExecutionContext, authenticate
 from .assistant import Assistant, OpenAIResponses
+from .monitoring import Monitoring, MonitoredProvider, parse_rate
 
 
-def handler_for(kb, identities=None, ai_provider=None):
+def handler_for(kb, identities=None, ai_provider=None, input_rate=None, output_rate=None):
     registry = ToolRegistry(kb)
+    monitoring = Monitoring(kb, input_rate, output_rate)
+    monitored_provider = MonitoredProvider(ai_provider, monitoring) if ai_provider else None
     identities = identities or {}
     class Handler(BaseHTTPRequestHandler):
         def send(self, status, value, content_type='application/json; charset=utf-8'):
@@ -48,6 +51,11 @@ def handler_for(kb, identities=None, ai_provider=None):
                 self.send(200, {'status': 'ok'})
             elif self.path == '/api/tools':
                 self.send(200, registry.definitions())
+            elif self.path == '/api/monitoring':
+                try:
+                    self.send(200, monitoring.snapshot(self.context()))
+                except ToolError as exc:
+                    self.tool_error(exc)
             elif self.path == '/api/documents':
 
                 try:
@@ -72,9 +80,9 @@ def handler_for(kb, identities=None, ai_provider=None):
                 if self.path == '/api/ai/ask':
                     if set(body) != {'question'}:
                         raise ToolError('invalid_arguments', 'Expected question')
-                    if ai_provider is None:
+                    if monitored_provider is None:
                         raise ToolError('provider_unavailable', 'AI provider is not configured')
-                    result = Assistant(registry, ai_provider).ask(body['question'], self.context())
+                    result = Assistant(registry, monitored_provider).ask(body['question'], self.context())
                 elif self.path in ('/api/tools/invoke', '/api/tools/prepare'):
                     # Arguments are validated against the selected tool's own schema.
                     if set(body) != {'name', 'arguments'}:
@@ -125,7 +133,14 @@ def main():
     if bool(api_key) != bool(model):
         parser.error('Set both OPENAI_API_KEY and DOCUMENT_QA_AI_MODEL to enable AI')
     provider = OpenAIResponses(api_key, model) if api_key and model else None
-    server = ThreadingHTTPServer((args.host, args.port), handler_for(KnowledgeBase(args.db), identities, provider))
+    try:
+        input_rate = parse_rate(os.environ.get('DOCUMENT_QA_INPUT_USD_PER_MILLION'))
+        output_rate = parse_rate(os.environ.get('DOCUMENT_QA_OUTPUT_USD_PER_MILLION'))
+        if (input_rate is None) != (output_rate is None):
+            raise ValueError('configure both input and output rates')
+    except ValueError as exc:
+        parser.error(str(exc))
+    server = ThreadingHTTPServer((args.host, args.port), handler_for(KnowledgeBase(args.db), identities, provider, input_rate, output_rate))
     print(f'Document QA: http://127.0.0.1:{args.port}', flush=True)
     try:
         server.serve_forever()

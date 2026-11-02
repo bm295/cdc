@@ -1,5 +1,34 @@
 # Hệ thống hỏi đáp tài liệu có evaluation
 
+## Giám sát và chi phí AI
+
+Dashboard tại `/` và `GET /api/monitoring` hiển thị số lần gọi provider, lỗi,
+độ trễ trung bình, token và chi phí ước tính theo model trong 24 giờ gần nhất.
+Danh tính phải có scope `monitoring:read`; scope đọc tài liệu không cấp quyền xem
+số liệu tổng hợp. Thêm scope này vào `DOCUMENT_QA_IDENTITIES` cho người vận hành.
+Một lượt hỏi có thể gọi provider nhiều lần; số liệu đếm từng lần gọi, không phải
+số câu hỏi. Lỗi bao gồm exception và response chưa hoàn tất, không bao gồm lỗi
+ứng dụng xảy ra sau một response hoàn tất. Không ghi prompt, câu trả lời, token
+xác thực hay nội dung tài liệu vào telemetry.
+
+Cấu hình `DOCUMENT_QA_INPUT_USD_PER_MILLION` và
+`DOCUMENT_QA_OUTPUT_USD_PER_MILLION` theo giá USD trên một triệu token cho model
+đang dùng. Hai giá được lưu vào phép tính tại thời điểm gọi; để trống cả hai nếu
+chưa biết giá. Tổng chi phí chỉ bao gồm các lần có cả usage và hai giá, còn số
+`unpriced_calls` cho biết các lần bị thiếu. Đơn giá áp dụng đồng nhất cho toàn bộ
+input và output, không phân biệt cached input, các loại token hay khoản phí khác;
+đây là ước tính, không phải hóa đơn. Timeout hoặc lỗi mạng có thể đã phát sinh phí
+nhưng không nhận được usage. Đối soát với báo cáo của nhà cung cấp.
+
+Số liệu được lưu trong volume SQLite và dọn các bản ghi quá 30 ngày khi ghi sự kiện
+mới. `/health` chỉ kiểm tra tiến trình, không chứng minh provider hay DB sẵn sàng.
+Compose chạy non-root, filesystem read-only, giới hạn bộ nhớ và PID, chỉ publish
+loopback. Sao lưu volume, bảo vệ biến môi trường, cấu hình TLS và xác thực tại
+gateway nếu truy cập từ xa. SQLite, rate limit và confirmation hiện thiết kế cho
+một tiến trình; chưa có HA, distributed rate limit, cảnh báo tự động hay budget cap.
+Dashboard là công cụ vận hành ban đầu, chưa thay thế hệ thống metrics và alerting
+tập trung. Giá cần được cập nhật khi model hoặc bảng giá thay đổi.
+
 ## AI assistant với công cụ đọc tài liệu
 
 Endpoint `POST /api/ai/ask` nhận `{"question":"..."}` và bearer token giống các

@@ -7,6 +7,8 @@ services:
       DOCUMENT_QA_IDENTITIES: ${DOCUMENT_QA_IDENTITIES:?Set trusted identities}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DOCUMENT_QA_AI_MODEL: ${DOCUMENT_QA_AI_MODEL:-}
+      DOCUMENT_QA_INPUT_USD_PER_MILLION: ${DOCUMENT_QA_INPUT_USD_PER_MILLION:-}
+      DOCUMENT_QA_OUTPUT_USD_PER_MILLION: ${DOCUMENT_QA_OUTPUT_USD_PER_MILLION:-}
     volumes:
       - qa-data:/data
     read_only: true
@@ -17,5 +19,8 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    init: true
+    pids_limit: 128
+    mem_limit: 512m
 volumes:
   qa-data:
