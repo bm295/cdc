@@ -102,3 +102,41 @@ Sáu ca ban đầu chỉ là smoke benchmark: thêm câu hỏi thật, câu hỏ
 paraphrase, trường hợp trùng từ nhưng khác nghĩa, tài liệu mâu thuẫn và nhãn
 ở cấp đoạn trước khi dùng để quyết định chất lượng sản phẩm. Giữ tập đánh giá
 riêng khi điều chỉnh chunk size, overlap và top-k để tránh tối ưu theo bộ mẫu.
+
+## Tool interfaces (v1.0)
+
+`document_qa.tools.ToolRegistry` cung cấp contract độc lập HTTP và model provider.
+`GET /api/tools` trả tên, mô tả, version, cờ `mutates`, `input_schema` và
+`output_schema` theo JSON Schema Draft 2020-12 cho từng tool:
+
+| Tool | Input | Output | Ghi dữ liệu |
+| --- | --- | --- | --- |
+| `search_documents` | question, top_k tùy chọn (mặc định 3) | Danh sách passage: chunk_id, document_id, title, word_offset, quote, score | Không |
+| `answer_question` | question, top_k tùy chọn (mặc định 3) | question, mode, abstained, answer, citations, latency_ms | Không |
+| `list_documents` | Object rỗng | Danh sách id, title | Không |
+| `upsert_document` | id, title, text | id, chunks | Có; thay thế cùng id |
+| `delete_document` | id | deleted (false nếu không tồn tại) | Có |
+
+Mọi object từ chối field lạ; input kiểm tra required, kiểu, chuỗi trắng,
+độ dài và giới hạn số. Boolean không được coi là integer. Output được kiểm tra
+trước khi trả cho caller, gồm cấu trúc citation. `default` trong schema là
+annotation; dispatcher áp dụng mặc định top_k=3. Các API cũ dùng chung registry,
+giữ nguyên response thành công nhưng nay từ chối field thừa.
+
+```bash
+curl http://127.0.0.1:8090/api/tools
+curl -X POST http://127.0.0.1:8090/api/tools/invoke \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"search_documents","arguments":{"question":"Kafka retries","top_k":2}}'
+```
+
+Python: `ToolRegistry(kb).invoke('search_documents', {'question': 'Kafka'})`.
+Kết quả trả trực tiếp theo output_schema. Lỗi tool qua HTTP có dạng
+`{"error":{"code":"invalid_arguments","message":"..."}}`:
+`unknown_tool`/`invalid_arguments` trả 400, `tool_execution_failed` trả 500,
+không lộ exception nội bộ. Lỗi JSON/body và route giữ định dạng lỗi HTTP cũ.
+`validate` chỉ triển khai các keyword được dùng trong registry, không phải
+validator JSON Schema tổng quát; khi thêm keyword mới phải mở rộng validator
+hoặc dùng thư viện đầy đủ. `mutates` là metadata cho caller lựa chọn policy,
+không thay thế xác thực hay phân quyền. Đây là tool interface/dispatcher,
+chưa phải agent loop, MCP server hay tích hợp model tool calling.
