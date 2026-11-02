@@ -101,6 +101,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--db', default='knowledge.db')
     parser.add_argument('--port', type=int, default=8090)
+    parser.add_argument('--host', default='127.0.0.1')
     args = parser.parse_args()
     config = os.environ.get('DOCUMENT_QA_IDENTITIES')
     if not config:
@@ -112,7 +113,7 @@ def main():
         ids = entry.get('document_ids', [])
         identities[entry['token']] = ExecutionContext(entry['subject'], frozenset(entry['scopes']),
                                                       None if ids is None else frozenset(ids))
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(KnowledgeBase(args.db), identities))
+    server = ThreadingHTTPServer((args.host, args.port), handler_for(KnowledgeBase(args.db), identities))
     print(f'Document QA: http://127.0.0.1:{args.port}', flush=True)
     try:
         server.serve_forever()

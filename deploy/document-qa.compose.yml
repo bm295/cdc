@@ -1,0 +1,19 @@
+services:
+  document-qa:
+    image: ${QA_IMAGE:?Set QA_IMAGE to the published image digest}
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      DOCUMENT_QA_IDENTITIES: ${DOCUMENT_QA_IDENTITIES:?Set trusted identities}
+    volumes:
+      - qa-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+volumes:
+  qa-data:
