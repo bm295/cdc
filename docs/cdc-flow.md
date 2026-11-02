@@ -98,30 +98,9 @@ Operation codes:
 
 After the worker consumes a Kafka message, it parses the Debezium envelope, dispatches the typed change event, applies the replica update, and then stores and commits the Kafka offset.
 
-```mermaid
-sequenceDiagram
-    participant Kafka as Kafka
-    participant Loop as KafkaConsumerLoop
-    participant Parser as DebeziumEnvelopeParser
-    participant Dispatcher as ChangeDispatcher
-    participant Handler as CustomerChangeHandler
-    participant Replica as inventory.customers_replica
-    participant DLQ as cdc.dead-letter
-
-    Kafka->>Loop: Consume message
-    Loop->>Parser: Parse Debezium envelope
-    Parser->>Loop: ChangeEvent<CustomerRecord>
-    Loop->>Dispatcher: Dispatch message
-    Dispatcher->>Handler: Handle customer change
-    Handler->>Replica: Upsert/Delete/Truncate
-    Handler->>Loop: Success
-    Loop->>Kafka: Store and commit offset
-
-    alt processing fails repeatedly
-        Loop->>DLQ: Publish DeadLetterMessage
-        Loop->>Kafka: Store and commit offset
-    end
-```
+See the verified [dispatch and projection sequence](sequence-diagrams.md#cdc-dispatch-and-projection)
+and [retry/DLQ sequence](sequence-diagrams.md#cdc-retries-and-dead-letters).
+Parsing occurs inside the typed subscription selected by ChangeDispatcher.
 
 ## Runtime Configuration
 

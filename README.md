@@ -111,3 +111,10 @@ python -m document_qa.server
 # Open http://127.0.0.1:8090
 python -m document_qa.evaluate
 ```
+
+## Decision records and runtime sequences
+
+See [Architecture decision records](docs/adr/README.md) and
+[sequence diagrams](docs/sequence-diagrams.md) for CDC delivery, scoped dispatch,
+local document QA, tool contracts and action security, including failure paths
+and current limitations.
