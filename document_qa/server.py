@@ -8,9 +8,10 @@ from urllib.parse import unquote
 from .core import KnowledgeBase
 from .tools import ToolRegistry, ToolError
 from .security import ExecutionContext, authenticate
+from .assistant import Assistant, OpenAIResponses
 
 
-def handler_for(kb, identities=None):
+def handler_for(kb, identities=None, ai_provider=None):
     registry = ToolRegistry(kb)
     identities = identities or {}
     class Handler(BaseHTTPRequestHandler):
@@ -33,7 +34,8 @@ def handler_for(kb, identities=None):
         def tool_error(self, exc):
             status = {'unauthenticated': 401, 'forbidden': 403, 'confirmation_required': 409,
                       'invalid_confirmation': 409, 'rate_limited': 429, 'quota_exceeded': 409,
-                      'confirmation_capacity_exceeded': 429, 'tool_execution_failed': 500}.get(exc.code, 400)
+                      'confirmation_capacity_exceeded': 429, 'tool_execution_failed': 500,
+                      'provider_unavailable': 503}.get(exc.code, 400)
             self.send(status, {'error': exc.as_dict()})
 
         def do_GET(self):
@@ -56,7 +58,7 @@ def handler_for(kb, identities=None):
                 self.send(404, {'error': 'Not found'})
 
         def do_POST(self):
-            if self.path not in ('/api/documents', '/api/ask', '/api/search', '/api/tools/invoke', '/api/tools/prepare'):
+            if self.path not in ('/api/documents', '/api/ask', '/api/search', '/api/tools/invoke', '/api/tools/prepare', '/api/ai/ask'):
                 return self.send(404, {'error': 'Not found'})
             if self.context() is None:
                 return self.tool_error(ToolError('unauthenticated', 'Bearer credential required'))
@@ -67,7 +69,13 @@ def handler_for(kb, identities=None):
                 body = json.loads(self.rfile.read(size))
                 if not isinstance(body, dict):
                     raise ValueError('Expected a JSON object')
-                if self.path in ('/api/tools/invoke', '/api/tools/prepare'):
+                if self.path == '/api/ai/ask':
+                    if set(body) != {'question'}:
+                        raise ToolError('invalid_arguments', 'Expected question')
+                    if ai_provider is None:
+                        raise ToolError('provider_unavailable', 'AI provider is not configured')
+                    result = Assistant(registry, ai_provider).ask(body['question'], self.context())
+                elif self.path in ('/api/tools/invoke', '/api/tools/prepare'):
                     # Arguments are validated against the selected tool's own schema.
                     if set(body) != {'name', 'arguments'}:
                         raise ToolError('invalid_arguments', 'Expected name and arguments')
@@ -113,7 +121,11 @@ def main():
         ids = entry.get('document_ids', [])
         identities[entry['token']] = ExecutionContext(entry['subject'], frozenset(entry['scopes']),
                                                       None if ids is None else frozenset(ids))
-    server = ThreadingHTTPServer((args.host, args.port), handler_for(KnowledgeBase(args.db), identities))
+    api_key, model = os.environ.get('OPENAI_API_KEY'), os.environ.get('DOCUMENT_QA_AI_MODEL')
+    if bool(api_key) != bool(model):
+        parser.error('Set both OPENAI_API_KEY and DOCUMENT_QA_AI_MODEL to enable AI')
+    provider = OpenAIResponses(api_key, model) if api_key and model else None
+    server = ThreadingHTTPServer((args.host, args.port), handler_for(KnowledgeBase(args.db), identities, provider))
     print(f'Document QA: http://127.0.0.1:{args.port}', flush=True)
     try:
         server.serve_forever()

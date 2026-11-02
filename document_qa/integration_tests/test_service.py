@@ -104,7 +104,8 @@ class ServiceIntegrationTests(unittest.TestCase):
         self.assertTrue(self.request('POST','/api/ask',{'question':'Kafka'})[1]['abstained'])
         if not self.image:
             import sqlite3
-            with sqlite3.connect(Path(self.tmp.name)/'knowledge.db') as db:
+            from contextlib import closing
+            with closing(sqlite3.connect(Path(self.tmp.name)/'knowledge.db')) as db:
                 outcomes = {r[0] for r in db.execute('SELECT outcome FROM tool_audit')}
             self.assertIn('succeeded', outcomes)
             self.assertIn('invalid_confirmation', outcomes)

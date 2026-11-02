@@ -1,5 +1,37 @@
 # Hệ thống hỏi đáp tài liệu có evaluation
 
+## AI assistant với công cụ đọc tài liệu
+
+Endpoint `POST /api/ai/ask` nhận `{"question":"..."}` và bearer token giống các
+API tài liệu. Cấu hình cả `OPENAI_API_KEY` và `DOCUMENT_QA_AI_MODEL` để bật chế độ
+AI; chọn model Responses API có hỗ trợ function calling và có quyền sử dụng trong
+tài khoản. Không cấu hình hai biến thì chế độ trích nguyên văn vẫn hoạt động.
+Trang web có nút **Hỏi AI**. Có thể dùng cùng các biến môi trường với
+`deploy/document-qa.compose.yml`.
+
+Ví dụ PowerShell, sau khi cấu hình `DOCUMENT_QA_IDENTITIES` như bên dưới:
+
+```powershell
+$env:OPENAI_API_KEY = '<API key>'
+$env:DOCUMENT_QA_AI_MODEL = '<model có hỗ trợ function calling>'
+python -m document_qa.server
+```
+
+Luồng tìm kiếm trước khi gọi model, lọc theo quyền của người dùng, từ chối nếu
+không có bằng chứng và cho model gọi lại công cụ tìm kiếm chỉ đọc tối đa ba vòng.
+Không cung cấp công cụ ghi hoặc xác nhận cho model. Kết quả `citations` chứa các
+đoạn thực sự được truy xuất, không đảm bảo mỗi khẳng định của model được chứng minh;
+cần kiểm tra nguồn. Câu hỏi và đoạn được phép truy cập được gửi tới OpenAI khi dùng
+AI, không gửi bearer token hoặc tài liệu không được phép. Không nhập dữ liệu không
+được phép chia sẻ với nhà cung cấp. `store: false` được đặt trong request; chính
+sách lưu trữ và xử lý dữ liệu của tài khoản cần được xem xét riêng. Lệnh trong tài
+liệu là dữ liệu không đáng tin; prompt injection và câu trả lời sai vẫn có thể xảy ra.
+
+Quyền, rate limit và audit của `search_documents` áp dụng cho từng lần truy xuất.
+Mỗi lượt AI có thể thực hiện nhiều request tới provider và có chi phí; timeout mỗi
+request là 30 giây. Không có lịch sử hội thoại; lỗi provider trả 503. Chế độ này
+chưa tích hợp dữ liệu khách hàng trực tiếp từ dashboard CDC.
+
 Module `document_qa` là ứng dụng độc lập trong repo CDC. Python 3.10+,
 chỉ dùng standard library; không cần Kafka, MySQL, .NET hoặc API key để chạy.
 Không thay đổi consumer hay cơ chế CDC hiện có.

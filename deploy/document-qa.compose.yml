@@ -5,6 +5,8 @@ services:
       - "127.0.0.1:8090:8090"
     environment:
       DOCUMENT_QA_IDENTITIES: ${DOCUMENT_QA_IDENTITIES:?Set trusted identities}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DOCUMENT_QA_AI_MODEL: ${DOCUMENT_QA_AI_MODEL:-}
     volumes:
       - qa-data:/data
     read_only: true
