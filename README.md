@@ -122,3 +122,7 @@ and current limitations.
 ## CI/CD and integration tests
 
 See [pipeline, container testing and deployment guide](docs/ci-cd.md).
+
+## Performance measurements
+
+See [HTTP p50/p95, throughput and cost benchmark](docs/performance.md).
