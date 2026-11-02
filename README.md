@@ -118,3 +118,7 @@ See [Architecture decision records](docs/adr/README.md) and
 [sequence diagrams](docs/sequence-diagrams.md) for CDC delivery, scoped dispatch,
 local document QA, tool contracts and action security, including failure paths
 and current limitations.
+
+## CI/CD and integration tests
+
+See [pipeline, container testing and deployment guide](docs/ci-cd.md).

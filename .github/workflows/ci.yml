@@ -88,3 +88,66 @@ jobs:
         with:
           name: document-qa-evaluation
           path: artifacts/document-qa-evaluation.json
+
+  integration:
+    name: Document QA process integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s document_qa/integration_tests -v
+
+  container:
+    name: Build and test deployment image
+    needs: [test, document-qa, integration]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: docker build -f document_qa/Dockerfile -t document-qa:test .
+      - name: Container HTTP lifecycle and persistent volume
+        env:
+          QA_TEST_IMAGE: document-qa:test
+        run: python -m unittest discover -s document_qa/integration_tests -v
+      - name: Save tested image
+        run: docker save document-qa:test -o document-qa-image.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: document-qa-image
+          path: document-qa-image.tar
+          retention-days: 3
+
+  publish:
+    name: Publish tested image to GHCR
+    needs: [container]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: document-qa-image
+      - name: Publish immutable commit tag
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${REPOSITORY,,}/document-qa"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          docker load -i document-qa-image.tar
+          docker tag document-qa:test "$image:$REVISION"
+          docker push "$image:$REVISION"
+          echo "Published $image:$REVISION; deploy using its registry digest." >> "$GITHUB_STEP_SUMMARY"

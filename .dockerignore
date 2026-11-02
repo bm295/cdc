@@ -1,0 +1,12 @@
+.git
+**/__pycache__
+**/*.pyc
+**/*.db
+**/*.db-*
+.env
+.env.*
+artifacts
+TestResults
+CoverageReport
+**/bin
+**/obj
