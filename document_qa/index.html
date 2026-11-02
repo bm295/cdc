@@ -5,7 +5,18 @@
 <section><h2>2. Đặt câu hỏi</h2><label>Câu hỏi<input id="question" placeholder="Kafka consumer xử lý retry như thế nào?"></label><button id="ask">Tìm câu trả lời</button><p id="status" role="status"></p><div id="answer"></div><div id="sources"></div><small>Kết quả là đoạn có từ khóa phù hợp, chưa có LLM tổng hợp hoặc kiểm chứng ngữ nghĩa. Có thể khớp sai nếu chỉ trùng từ thông dụng.</small></section>
 <script>
 const el=id=>document.getElementById(id);
-async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const v=await r.json();if(!r.ok)throw Error(v.error);return v}
+async function api(path,body){
+const token=window.qaToken||(window.qaToken=prompt('Bearer token (kept in memory only)'));
+const headers={'Content-Type':'application/json','Authorization':'Bearer '+token};
+if(path==='/api/documents'&&body){
+ const p=await fetch('/api/tools/prepare',{method:'POST',headers,body:JSON.stringify({name:'upsert_document',arguments:body})});
+ const pending=await p.json();if(!p.ok)throw Error(pending.error?.message||pending.error);
+ if(!confirm('Create or replace document '+pending.document_id+'?'))throw Error('Cancelled');
+ headers['X-Confirmation-Token']=pending.confirmation_token;
+}
+const r=await fetch(path,body?{method:'POST',headers,body:JSON.stringify(body)}:{headers});
+const v=await r.json();if(!r.ok)throw Error(v.error?.message||v.error);return v}
+
 el('file').onchange=async()=>{const f=el('file').files[0];if(f)el('content').value=await f.text()};
 el('save').onclick=async()=>{try{const r=await api('/api/documents',{id:el('docId').value,title:el('title').value,text:el('content').value});el('docs').textContent=`Đã lưu ${r.id}: ${r.chunks} đoạn`}catch(e){el('docs').textContent=e.message}};
 el('list').onclick=async()=>{try{el('docs').textContent=JSON.stringify(await api('/api/documents'),null,2)}catch(e){el('docs').textContent=e.message}};
